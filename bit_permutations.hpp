@@ -235,6 +235,14 @@ template <unsigned_integral T>
 }
 
 template <unsigned_integral T>
+[[nodiscard]] constexpr T compress_bitsl_naive(T x, T m) noexcept
+{
+    const T xr = reverse_bits_naive(x);
+    const T mr = reverse_bits_naive(m);
+    return reverse_bits_naive(compress_bitsr_naive(xr, mr));
+}
+
+template <unsigned_integral T>
 [[nodiscard]] constexpr T expand_bitsr_naive(T x, T m) noexcept
 {
     T result = 0;
@@ -244,6 +252,14 @@ template <unsigned_integral T>
         j += mask_bit;
     }
     return result;
+}
+
+template <unsigned_integral T>
+[[nodiscard]] constexpr T expand_bitsl_naive(T x, T m) noexcept
+{
+    const T xr = reverse_bits_naive(x);
+    const T mr = reverse_bits_naive(m);
+    return reverse_bits_naive(expand_bitsr_naive(xr, mr));
 }
 
 } // namespace detail
@@ -417,7 +433,7 @@ template <unsigned_integral T>
 }
 
 template <unsigned_integral T>
-[[nodiscard]] constexpr T expand_bitsr(T x, T m)
+[[nodiscard]] constexpr T expand_bitsr(T x, T m) noexcept
 {
     constexpr int N = numeric_limits<T>::digits;
     constexpr int log_N = detail::log2_floor(N);
@@ -508,7 +524,7 @@ constexpr T compress_bitsl(T x, T m) noexcept
         return 0;
     }
     int shift = numeric_limits<T>::digits - popcount(m);
-    return compress_bitsr(x, m) << shift;
+    return static_cast<T>(compress_bitsr(x, m) << shift);
 #endif
 }
 
@@ -521,8 +537,8 @@ constexpr T expand_bitsl(T x, T m) noexcept
     if (m == 0) {
         return 0;
     }
-    int shift = numeric_limits<T>::digits - popcount(m);
-    return expand_bitsr(x >> shift, m);
+    const int shift = numeric_limits<T>::digits - popcount(m);
+    return expand_bitsr(static_cast<T>(x >> shift), m);
 #endif
 }
 

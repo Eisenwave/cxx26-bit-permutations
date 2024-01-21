@@ -129,7 +129,7 @@ namespace detail {
     return x < 1 ? 0 : numeric_limits<unsigned>::digits - countl_zero(static_cast<unsigned>(x)) - 1;
 }
 
-/// Computes `floor(log2(max(1, x)))` of an
+/// Computes `ceil(log2(max(1, x)))` of an
 /// integer x.
 [[nodiscard]] constexpr int log2_ceil(int x) noexcept
 {
@@ -140,7 +140,7 @@ namespace detail {
 /// groups of 0s and 1s. The least significant bit
 /// is always zero.
 template <unsigned_integral T>
-constexpr T alternate01(int group_size = 1) noexcept
+[[nodiscard]] constexpr T alternate01(int group_size = 1) noexcept
 {
     constexpr int N = numeric_limits<T>::digits;
 
@@ -156,10 +156,6 @@ constexpr T alternate01(int group_size = 1) noexcept
 
     return result;
 }
-
-inline constexpr bool bytes_are_octets = numeric_limits<unsigned char>::digits == 8;
-inline constexpr bool byte_size_is_pow2
-    = is_pow2_or_zero(numeric_limits<unsigned char>::digits == 8);
 
 // Exposed as a separate function for testing purposes.
 template <unsigned_integral T>
@@ -329,7 +325,7 @@ template <unsigned_integral T>
         int start_i = N;
 
         // If byteswap does what we want, we can skip a few iterations of the subsequent loop.
-        if constexpr (detail::byte_size_is_pow2 && N >= byte_bits) {
+        if constexpr (detail::is_pow2_or_zero(byte_bits) && N >= byte_bits) {
             x = byteswap(x);
             start_i = byte_bits;
         }

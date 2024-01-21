@@ -85,23 +85,20 @@ void test_alternate01()
     ASSERT_S(alternate01<std::uint32_t>(8) == 0xff00'ff00);
 }
 
+template <std::uint8_t (&F)(std::uint8_t)>
 void test_bipp()
 {
-    ASSERT_S(bitwise_inclusive_prefix_parity(0b0000'0000u) == 0b0000'0000);
-    ASSERT_S(bitwise_inclusive_prefix_parity(0b1111'1111u) == 0b0101'0101);
-    ASSERT_S(bitwise_inclusive_prefix_parity(0b1001'0000u) == 0b0111'0000);
-    ASSERT_S(bitwise_inclusive_prefix_parity(0b0100'1000u) == 0b0011'1000);
-
-    ASSERT_S(bitwise_inclusive_prefix_parity(0x0123'4567'89ab'cdefu)
-             == bitwise_inclusive_prefix_parity_naive(0x0123'4567'89ab'cdefu));
+    ASSERT_S(F(0b0000'0000u) == 0b0000'0000);
+    ASSERT_S(F(0b1111'1111u) == 0b0101'0101);
+    ASSERT_S(F(0b1001'0000u) == 0b0111'0000);
+    ASSERT_S(F(0b0100'1000u) == 0b0011'1000);
 }
 
+template <std::uint8_t (&F)(std::uint8_t)>
 void test_reverse_bits()
 {
-    ASSERT_S(reverse_bits(std::uint8_t { 0b1101'1001u }) == 0b1001'1011);
-    ASSERT_S(reverse_bits(std::uint8_t { 0b1101'1001u }) == 0b1001'1011);
-    ASSERT_S(reverse_bits(0x0123'4567'89ab'cdefu)
-             == detail::reverse_bits_naive(0x0123'4567'89ab'cdefu));
+    ASSERT_S(F(std::uint8_t { 0b1101'1001u }) == 0b1001'1011);
+    ASSERT_S(F(std::uint8_t { 0b1101'1001u }) == 0b1001'1011);
 }
 
 template <std::uint8_t (&F)(std::uint8_t, std::uint8_t)>
@@ -113,12 +110,13 @@ void test_compress_bitsr()
     ASSERT_S(F(0b111111u, 0b101010u) == 0b111);
 }
 
+template <std::uint8_t (&F)(std::uint8_t, std::uint8_t)>
 void test_expand_bitsr()
 {
-    ASSERT_S(expand_bitsr<std::uint8_t>(0b000u, 0b101010u) == 0b000000);
-    ASSERT_S(expand_bitsr<std::uint8_t>(0b101u, 0b101011u) == 0b001001);
-    ASSERT_S(expand_bitsr<std::uint8_t>(0b101u, 0b101010u) == 0b100010);
-    ASSERT_S(expand_bitsr<std::uint8_t>(0b111u, 0b101010u) == 0b101010);
+    ASSERT_S(F(0b000u, 0b101010u) == 0b000000);
+    ASSERT_S(F(0b101u, 0b101011u) == 0b001001);
+    ASSERT_S(F(0b101u, 0b101010u) == 0b100010);
+    ASSERT_S(F(0b111u, 0b101010u) == 0b101010);
 }
 
 constexpr int seed = 0x12345;
@@ -159,11 +157,18 @@ constexpr void (*tests[])() = {
     test_log2_floor,
     test_log2_ceil,
     test_alternate01,
-    test_bipp,
-    test_reverse_bits,
+
+    test_bipp<bitwise_inclusive_prefix_parity>,
+    test_bipp<bitwise_inclusive_prefix_parity_naive>,
+    
+    test_reverse_bits<reverse_bits>,
+    test_reverse_bits<reverse_bits_naive>,
+
     test_compress_bitsr<compress_bitsr>,
     test_compress_bitsr<compress_bitsr_naive>,
-    test_expand_bitsr,
+
+    test_expand_bitsr<expand_bitsr>,
+    test_expand_bitsr<expand_bitsr_naive>,
     
 #ifndef __INTELLISENSE__
     naive_fuzz_1<std::uint8_t,  reverse_bits, reverse_bits_naive>,

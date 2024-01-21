@@ -356,10 +356,10 @@ template <unsigned_integral T>
 #endif
     if !consteval {
         if constexpr (N <= 32) {
-            return _pext_u32(x, m);
+            return static_cast<T>(_pext_u32(x, m));
         }
         else if constexpr (N <= 64) {
-            return _pext_u64(x, m);
+            return static_cast<T>(_pext_u64(x, m));
         }
     }
 #endif

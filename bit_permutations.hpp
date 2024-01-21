@@ -274,8 +274,8 @@ template <unsigned_integral T>
 #ifdef CXX26_BIT_PERMUTATIONS_ENABLE_DEBUG_PP
 #warning Delegating reverse_bits  =>  __builtin_bitreverse (clang)
 #endif
-    if constexpr (N == 8) {
-        return __builtin_bitreverse8(x);
+    if constexpr (N <= 8) {
+        return static_cast<T>(__builtin_bitreverse8(x) >> (8 - N));
     }
     else if constexpr (N == 16) {
         return __builtin_bitreverse16(x);
@@ -286,39 +286,36 @@ template <unsigned_integral T>
     else if constexpr (N == 64) {
         return __builtin_bitreverse64(x);
     }
-    else if constexpr (N == 128) {
-        constexpr T hi64 = (T(1) << 64) - 1;
-        return __builtin_bitreverse64((x & hi64) >> 64) //
-            | (__builtin_bitreverse64(x & ~hi64) << 64);
-    }
 #elif defined(CXX26_BIT_PERMUTATIONS_ARM_RBIT)
 #ifdef CXX26_BIT_PERMUTATIONS_ENABLE_DEBUG_PP
 #warning Delegating reverse_bits  =>  __rbit
 #endif
     if !consteval {
-        if constexpr (N == 8) {
-            return static_cast<T>(__rbit(x) >> 24);
+        constexpr int N_uint = numeric_limits<unsigned>::digits;
+        if constexpr (N <= N_uint) {
+            return static_cast<T>(__rbit(static_cast<unsigned>(x)) >> (N_uint - N));
         }
-        else if constexpr (N == 16) {
-            return static_cast<T>(__rbit(x) >> 16);
+        else if constexpr (N == numeric_limits<unsigned long>::digits) {
+            return static_cast<T>(__rbitl(x));
         }
-        else if constexpr (N == 32) {
-            return __rbit(x);
-        }
-        else if constexpr (is_same_v<T, unsigned long>) {
-            return __rbitl(x);
-        }
-        else if constexpr (N == 64) {
+        else if constexpr (N == numeric_limits<unsigned long long>::digits) {
             return static_cast<T>(__rbitll(x));
-        }
-        else if constexpr (N == 128) {
-            constexpr T hi64 = (T(1) << 64) - 1;
-            return __rbitll((x & hi64) >> 64) //
-                | (__rbitll(x & ~hi64) << 64);
         }
     }
 #endif
-    if constexpr (detail::is_pow2_or_zero(N)) {
+    if constexpr (N >= 128 && N % 64 == 0 && numeric_limits<uint_least64_t>::digits == 64) {
+        // For powers of two starting with 128, we assume that there is an efficient 64-bit
+        // implementation, if the hardware has a 64-bit type.
+        // We perform the naive algorithm, but for 64 bits at time, not just one.
+        T result = 0;
+        for (int i = 0; i < N; i += 64) {
+            result <<= 64;
+            result |= reverse_bits(static_cast<uint_least64_t>(x));
+            x >>= 64;
+        }
+        return result;
+    }
+    else if constexpr (detail::is_pow2_or_zero(N)) {
         // Byte-swap and parallel swap technique for conventional architectures.
         // O(log N)
         constexpr int byte_bits = numeric_limits<unsigned char>::digits;
@@ -364,7 +361,6 @@ template <unsigned_integral T>
         else if constexpr (N <= 64) {
             return _pext_u64(x, m);
         }
-        // TODO 128-bit
     }
 #endif
 
@@ -391,20 +387,19 @@ template <unsigned_integral T>
         }
     }
 #endif
-    if constexpr (N > 64) {
-        // For integer sizes above 64, we assume that a fast >= 64-bit implementation is provided
-        // through unsigned long long. We compute the result digit by digit (where each digit is
-        // 64-bit).
-        constexpr int M = numeric_limits<unsigned long long>::digits;
+    constexpr int N_native = numeric_limits<size_t>::digits;
+    if constexpr (N > N_native) {
+        // For integer sizes above the native size, we assume that a fast native implementation is
+        // provided. We then perform the algorithm digit by digit, where a digit is a native
+        // integer.
         T result = 0;
         int offset = 0;
-        for (int mask_bits = 0; mask_bits < N; mask_bits += M) {
-            const auto compressed = compress_bitsr(static_cast<unsigned long long>(x),
-                                                   static_cast<unsigned long long>(m));
+        for (int mask_bits = 0; mask_bits < N; mask_bits += N_native) {
+            const auto compressed = compress_bitsr(static_cast<size_t>(x), static_cast<size_t>(m));
             result |= static_cast<T>(compressed) << offset;
-            offset += popcount(static_cast<unsigned long long>(m));
-            x >>= M;
-            m >>= M;
+            offset += popcount(static_cast<size_t>(m));
+            x >>= N_native;
+            m >>= N_native;
         }
 
         return result;
@@ -472,16 +467,15 @@ template <unsigned_integral T>
         }
     }
 #endif
-    if constexpr (N > 64) {
+    constexpr int N_native = numeric_limits<size_t>::digits;
+    if constexpr (N > N_native) {
         // Digit-by-digit approach, same as in expand_bitsr.
-        constexpr int M = numeric_limits<unsigned long long>::digits;
         T result = 0;
-        for (int mask_bits = 0; mask_bits < N; mask_bits += M) {
-            const auto expanded = expand_bitsr(static_cast<unsigned long long>(x),
-                                               static_cast<unsigned long long>(m));
+        for (int mask_bits = 0; mask_bits < N; mask_bits += N_native) {
+            const auto expanded = expand_bitsr(static_cast<size_t>(x), static_cast<size_t>(m));
             result |= static_cast<T>(expanded) << mask_bits;
-            x >>= popcount(static_cast<unsigned long long>(m));
-            m >>= M;
+            x >>= popcount(static_cast<size_t>(m));
+            m >>= N_native;
         }
 
         return result;

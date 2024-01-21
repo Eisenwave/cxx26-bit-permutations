@@ -303,15 +303,15 @@ template <unsigned_integral T>
         }
     }
 #endif
-    if constexpr (N >= 128 && N % 64 == 0 && numeric_limits<uint_least64_t>::digits == 64) {
-        // For powers of two starting with 128, we assume that there is an efficient 64-bit
-        // implementation, if the hardware has a 64-bit type.
-        // We perform the naive algorithm, but for 64 bits at time, not just one.
+    constexpr int N_native = numeric_limits<size_t>::digits;
+    if constexpr (N > N_native && N % N_native == 0) {
+        // For multiples of the native size, we assume that there is a fast native implementation.
+        // We perform the naive algorithm, but for N_native bits at time, not just one.
         T result = 0;
-        for (int i = 0; i < N; i += 64) {
-            result <<= 64;
-            result |= reverse_bits(static_cast<uint_least64_t>(x));
-            x >>= 64;
+        for (int i = 0; i < N; i += N_native) {
+            result <<= N_native;
+            result |= reverse_bits(static_cast<size_t>(x));
+            x >>= N_native;
         }
         return result;
     }

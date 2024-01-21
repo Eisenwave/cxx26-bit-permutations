@@ -111,6 +111,15 @@ void test_compress_bitsr()
 }
 
 template <std::uint8_t (&F)(std::uint8_t, std::uint8_t)>
+void test_compress_bitsl()
+{
+    ASSERT_S(F(0b000000u, 0b101010u) == 0b000'00000);
+    ASSERT_S(F(0b010101u, 0b101010u) == 0b000'00000);
+    ASSERT_S(F(0b101010u, 0b101010u) == 0b111'00000);
+    ASSERT_S(F(0b111111u, 0b101010u) == 0b111'00000);
+}
+
+template <std::uint8_t (&F)(std::uint8_t, std::uint8_t)>
 void test_expand_bitsr()
 {
     ASSERT_S(F(0b000u, 0b101010u) == 0b000000);
@@ -153,6 +162,7 @@ void naive_fuzz_2()
 
 // clang-format off
 constexpr void (*tests[])() = {
+#ifndef __INTELLISENSE__
     test_is_pow2_or_zero,
     test_log2_floor,
     test_log2_ceil,
@@ -167,10 +177,12 @@ constexpr void (*tests[])() = {
     test_compress_bitsr<compress_bitsr>,
     test_compress_bitsr<compress_bitsr_naive>,
 
+    test_compress_bitsl<compress_bitsl>,
+    test_compress_bitsl<compress_bitsl_naive>,
+
     test_expand_bitsr<expand_bitsr>,
     test_expand_bitsr<expand_bitsr_naive>,
     
-#ifndef __INTELLISENSE__
     naive_fuzz_1<std::uint8_t,  reverse_bits, reverse_bits_naive>,
     naive_fuzz_1<std::uint16_t, reverse_bits, reverse_bits_naive>,
     naive_fuzz_1<std::uint32_t, reverse_bits, reverse_bits_naive>,
@@ -186,10 +198,20 @@ constexpr void (*tests[])() = {
     naive_fuzz_2<std::uint32_t, compress_bitsr, compress_bitsr_naive>,
     naive_fuzz_2<std::uint64_t, compress_bitsr, compress_bitsr_naive>,
 
+    naive_fuzz_2<std::uint8_t,  compress_bitsl, compress_bitsl_naive>,
+    naive_fuzz_2<std::uint16_t, compress_bitsl, compress_bitsl_naive>,
+    naive_fuzz_2<std::uint32_t, compress_bitsl, compress_bitsl_naive>,
+    naive_fuzz_2<std::uint64_t, compress_bitsl, compress_bitsl_naive>,
+
     naive_fuzz_2<std::uint8_t,  expand_bitsr, expand_bitsr_naive>,
     naive_fuzz_2<std::uint16_t, expand_bitsr, expand_bitsr_naive>,
     naive_fuzz_2<std::uint32_t, expand_bitsr, expand_bitsr_naive>,
     naive_fuzz_2<std::uint64_t, expand_bitsr, expand_bitsr_naive>,
+
+    naive_fuzz_2<std::uint8_t,  expand_bitsl, expand_bitsl_naive>,
+    naive_fuzz_2<std::uint16_t, expand_bitsl, expand_bitsl_naive>,
+    naive_fuzz_2<std::uint32_t, expand_bitsl, expand_bitsl_naive>,
+    naive_fuzz_2<std::uint64_t, expand_bitsl, expand_bitsl_naive>,
 #endif
 };
 // clang-format on

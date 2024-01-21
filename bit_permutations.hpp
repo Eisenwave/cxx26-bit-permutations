@@ -175,7 +175,7 @@ template <unsigned_integral T>
 }
 
 template <unsigned_integral T>
-[[nodiscard]] constexpr T bitwise_inclusive_prefix_parity_naive(T x) noexcept
+[[nodiscard]] constexpr T bitwise_inclusive_right_parity_naive(T x) noexcept
 {
     constexpr int N = numeric_limits<T>::digits;
 
@@ -192,20 +192,20 @@ template <unsigned_integral T>
 /// Each bit in `x` is converted to the parity a bit and all bits to its right.
 /// This can also be expressed as `CLMUL(x, -1)` where `CLMUL` is a carry-less multiplication.
 template <unsigned_integral T>
-[[nodiscard]] constexpr T bitwise_inclusive_prefix_parity(T x) noexcept
+[[nodiscard]] constexpr T bitwise_inclusive_right_parity(T x) noexcept
 {
     constexpr int N = numeric_limits<T>::digits;
 
 #ifdef CXX26_BIT_PERMUTATIONS_X86_PCLMUL
 #ifdef CXX26_BIT_PERMUTATIONS_ENABLE_DEBUG_PP
-#warning Delegating bitwise_inclusive_prefix_parity  =>  PCLMUL
+#warning Delegating bitwise_inclusive_right_parity  =>  PCLMUL
 #endif
     if !consteval {
         if constexpr (N <= 64) {
             const __m128i x_128 = _mm_set_epi64x(0, x);
             const __m128i neg1_128 = _mm_set_epi64x(0, -1);
             const __m128i result_128 = _mm_clmulepi64_si128(x_128, neg1_128, 0);
-            return _mm_extract_epi64(result_128, 0) & T(-1);
+            return static_cast<T>(_mm_extract_epi64(result_128, 0));
         }
     }
 #endif
@@ -409,7 +409,7 @@ template <unsigned_integral T>
         T mk = ~m << 1;
 
         for (int i = 1; i < N; i <<= 1) {
-            const T mk_parity = detail::bitwise_inclusive_prefix_parity(mk);
+            const T mk_parity = detail::bitwise_inclusive_right_parity(mk);
 
             const T move = mk_parity & m;
             m = (m ^ move) | (move >> i);
@@ -487,7 +487,7 @@ template <unsigned_integral T>
         T mk = ~m << 1; // We will count 0's to right.
 
         for (int i = 0; i < log_N; ++i) {
-            const T mk_parity = detail::bitwise_inclusive_prefix_parity(mk);
+            const T mk_parity = detail::bitwise_inclusive_right_parity(mk);
             const T move = mk_parity & m;
             m = (m ^ move) | (move >> (1 << i));
             array[i] = move;

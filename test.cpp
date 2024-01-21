@@ -168,8 +168,8 @@ constexpr void (*tests[])() = {
     test_log2_ceil,
     test_alternate01,
 
-    test_bipp<bitwise_inclusive_prefix_parity>,
-    test_bipp<bitwise_inclusive_prefix_parity_naive>,
+    test_bipp<bitwise_inclusive_right_parity>,
+    test_bipp<bitwise_inclusive_right_parity_naive>,
     
     test_reverse_bits<reverse_bits>,
     test_reverse_bits<reverse_bits_naive>,
@@ -188,10 +188,10 @@ constexpr void (*tests[])() = {
     naive_fuzz_1<std::uint32_t, reverse_bits, reverse_bits_naive>,
     naive_fuzz_1<std::uint64_t, reverse_bits, reverse_bits_naive>,
 
-    naive_fuzz_1<std::uint8_t,  bitwise_inclusive_prefix_parity, bitwise_inclusive_prefix_parity_naive>,
-    naive_fuzz_1<std::uint16_t, bitwise_inclusive_prefix_parity, bitwise_inclusive_prefix_parity_naive>,
-    naive_fuzz_1<std::uint32_t, bitwise_inclusive_prefix_parity, bitwise_inclusive_prefix_parity_naive>,
-    naive_fuzz_1<std::uint64_t, bitwise_inclusive_prefix_parity, bitwise_inclusive_prefix_parity_naive>,
+    naive_fuzz_1<std::uint8_t,  bitwise_inclusive_right_parity, bitwise_inclusive_right_parity_naive>,
+    naive_fuzz_1<std::uint16_t, bitwise_inclusive_right_parity, bitwise_inclusive_right_parity_naive>,
+    naive_fuzz_1<std::uint32_t, bitwise_inclusive_right_parity, bitwise_inclusive_right_parity_naive>,
+    naive_fuzz_1<std::uint64_t, bitwise_inclusive_right_parity, bitwise_inclusive_right_parity_naive>,
 
     naive_fuzz_2<std::uint8_t,  compress_bitsr, compress_bitsr_naive>,
     naive_fuzz_2<std::uint16_t, compress_bitsr, compress_bitsr_naive>,

@@ -258,6 +258,16 @@ template <unsigned_integral T>
     return reverse_bits_naive(expand_bitsr_naive(xr, mr));
 }
 
+template <unsigned_integral T>
+[[nodiscard]] constexpr T next_bit_permutation_naive(T x) noexcept
+{
+    int count = popcount(x);
+    do {
+        ++x;
+    } while (x != 0 && popcount(x) != count);
+    return x;
+}
+
 } // namespace detail
 
 template <unsigned_integral T>
@@ -530,6 +540,19 @@ constexpr T expand_bitsl(T x, T m) noexcept
     const int shift = numeric_limits<T>::digits - popcount(m);
     return expand_bitsr(static_cast<T>(x >> shift), m);
 #endif
+}
+
+template <unsigned_integral T>
+[[nodiscard]] constexpr T next_bit_permutation(T x) noexcept
+{
+    // https://graphics.stanford.edu/~seander/bithacks.html#NextBitPermutation
+    constexpr T one = 1;
+    const T t = x | (x - one);
+    if (t == static_cast<T>(~0)) {
+        return 0;
+    }
+    // Two shifts are better than shifting by + 1. We must not shift by the operand size.
+    return (t + one) | (((~t & -~t) - one) >> countr_zero(x) >> one);
 }
 
 } // namespace std::experimental

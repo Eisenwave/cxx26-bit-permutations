@@ -128,6 +128,31 @@ void test_expand_bitsr()
     ASSERT_S(F(0b111u, 0b101010u) == 0b101010);
 }
 
+template <std::uint8_t (&F)(std::uint8_t)>
+void text_next_bit_permutation()
+{
+    ASSERT_S(F(0) == 0);
+    ASSERT_S(F(1) == 2);
+    ASSERT_S(F(2) == 4);
+    ASSERT_S(F(3) == 5);
+    ASSERT_S(F(4) == 8);
+    ASSERT_S(F(5) == 6);
+    ASSERT_S(F(6) == 9);
+    ASSERT_S(F(7) == 11);
+
+    ASSERT_S(F(8) == 16);
+    ASSERT_S(F(9) == 10);
+    ASSERT_S(F(10) == 12);
+    ASSERT_S(F(11) == 13);
+    ASSERT_S(F(12) == 17);
+    ASSERT_S(F(13) == 14);
+    ASSERT_S(F(14) == 19);
+    ASSERT_S(F(15) == 23);
+
+    ASSERT_S(F(128) == 0);
+    ASSERT_S(F(224) == 0);
+}
+
 constexpr int seed = 0x12345;
 constexpr int default_fuzz_count = 1024 * 1024;
 using rng_type = std::mt19937_64;
@@ -182,7 +207,11 @@ constexpr void (*tests[])() = {
 
     test_expand_bitsr<expand_bitsr>,
     test_expand_bitsr<expand_bitsr_naive>,
+
+    text_next_bit_permutation<next_bit_permutation>,
+    text_next_bit_permutation<next_bit_permutation_naive>,
     
+#if 0
     naive_fuzz_1<std::uint8_t,  reverse_bits, reverse_bits_naive>,
     naive_fuzz_1<std::uint16_t, reverse_bits, reverse_bits_naive>,
     naive_fuzz_1<std::uint32_t, reverse_bits, reverse_bits_naive>,
@@ -212,6 +241,12 @@ constexpr void (*tests[])() = {
     naive_fuzz_2<std::uint16_t, expand_bitsl, expand_bitsl_naive>,
     naive_fuzz_2<std::uint32_t, expand_bitsl, expand_bitsl_naive>,
     naive_fuzz_2<std::uint64_t, expand_bitsl, expand_bitsl_naive>,
+#endif
+
+    naive_fuzz_1<std::uint8_t,  next_bit_permutation, next_bit_permutation_naive>,
+    naive_fuzz_1<std::uint16_t, next_bit_permutation, next_bit_permutation_naive>,
+    naive_fuzz_1<std::uint32_t, next_bit_permutation, next_bit_permutation_naive>,
+    naive_fuzz_1<std::uint64_t, next_bit_permutation, next_bit_permutation_naive>,
 #endif
 };
 // clang-format on

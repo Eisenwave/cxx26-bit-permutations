@@ -7,6 +7,7 @@ This project provides a single-header reference implementation for the functions
 - `expand_bitsr`
 - `compress_bitsl`
 - `expand_bitsl`
+- `next_bit_permutation` (not currently proposed)
 
 All functions are located in namespace `std::experimental`.
 

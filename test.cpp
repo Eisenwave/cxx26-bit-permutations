@@ -154,7 +154,11 @@ void text_next_bit_permutation()
 }
 
 constexpr int seed = 0x12345;
+#ifndef FUZZ_COUNT
 constexpr int default_fuzz_count = 1024 * 1024 * 16;
+#else
+constexpr int default_fuzz_count = FUZZ_COUNT;
+#endif
 using rng_type = std::mt19937_64;
 
 template <typename T, T (&Fun)(T), T (&Naive)(T), int FuzzCount = default_fuzz_count>

@@ -262,9 +262,7 @@ template <unsigned_integral T>
 [[nodiscard]] constexpr T next_bit_permutation_naive(T x) noexcept
 {
     const int count = popcount(x);
-    do {
-        ++x;
-    } while (x != 0 && popcount(x) != count);
+    while (x != 0 && popcount(++x) != count) { }
     return x;
 }
 

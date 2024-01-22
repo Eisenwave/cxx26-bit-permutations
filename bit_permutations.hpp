@@ -157,38 +157,6 @@ template <unsigned_integral T>
     return result;
 }
 
-// Exposed as a separate function for testing purposes.
-template <unsigned_integral T>
-[[nodiscard]] constexpr T reverse_bits_naive(T x) noexcept
-{
-    constexpr int N = numeric_limits<T>::digits;
-
-    // Naive fallback.
-    // O(N)
-    T result = 0;
-    for (int i = 0; i < N; ++i) {
-        result <<= 1;
-        result |= x & 1;
-        x >>= 1;
-    }
-    return result;
-}
-
-template <unsigned_integral T>
-[[nodiscard]] constexpr T bitwise_inclusive_right_parity_naive(T x) noexcept
-{
-    constexpr int N = numeric_limits<T>::digits;
-
-    T result = 0;
-    bool parity = false;
-    for (int i = 0; i < N; ++i) {
-        parity ^= (x >> i) & 1;
-        result |= static_cast<T>(parity) << i;
-    }
-
-    return result;
-}
-
 /// Each bit in `x` is converted to the parity a bit and all bits to its right.
 /// This can also be expressed as `CLMUL(x, -1)` where `CLMUL` is a carry-less multiplication.
 template <unsigned_integral T>
@@ -215,6 +183,46 @@ template <unsigned_integral T>
     for (int i = 1; i < N; i <<= 1) {
         x ^= x << i;
     }
+    return x;
+}
+
+template <unsigned_integral T>
+[[nodiscard]] constexpr T bitwise_inclusive_right_parity_naive(T x) noexcept
+{
+    constexpr int N = numeric_limits<T>::digits;
+
+    T result = 0;
+    bool parity = false;
+    for (int i = 0; i < N; ++i) {
+        parity ^= (x >> i) & 1;
+        result |= static_cast<T>(parity) << i;
+    }
+
+    return result;
+}
+
+// Exposed as a separate function for testing purposes.
+template <unsigned_integral T>
+[[nodiscard]] constexpr T reverse_bits_naive(T x) noexcept
+{
+    constexpr int N = numeric_limits<T>::digits;
+
+    // Naive fallback.
+    // O(N)
+    T result = 0;
+    for (int i = 0; i < N; ++i) {
+        result <<= 1;
+        result |= x & 1;
+        x >>= 1;
+    }
+    return result;
+}
+
+template <unsigned_integral T>
+[[nodiscard]] constexpr T next_bit_permutation_naive(T x) noexcept
+{
+    const int count = popcount(x);
+    while (x != 0 && popcount(++x) != count) { }
     return x;
 }
 
@@ -256,14 +264,6 @@ template <unsigned_integral T>
     const T xr = reverse_bits_naive(x);
     const T mr = reverse_bits_naive(m);
     return reverse_bits_naive(expand_bitsr_naive(xr, mr));
-}
-
-template <unsigned_integral T>
-[[nodiscard]] constexpr T next_bit_permutation_naive(T x) noexcept
-{
-    const int count = popcount(x);
-    while (x != 0 && popcount(++x) != count) { }
-    return x;
 }
 
 } // namespace detail
@@ -351,6 +351,19 @@ template <unsigned_integral T>
         return detail::reverse_bits_naive(x);
 #endif
     }
+}
+
+template <unsigned_integral T>
+[[nodiscard]] constexpr T next_bit_permutation(T x) noexcept
+{
+    // https://graphics.stanford.edu/~seander/bithacks.html#NextBitPermutation
+    constexpr T one = 1;
+    const T t = x | (x - one);
+    if (t == static_cast<T>(-1)) {
+        return 0;
+    }
+    // Two shifts are better than shifting by + 1. We must not shift by the operand size.
+    return (t + one) | (((~t & -~t) - one) >> countr_zero(x) >> one);
 }
 
 template <unsigned_integral T>
@@ -538,19 +551,6 @@ template <unsigned_integral T>
     const int shift = numeric_limits<T>::digits - popcount(m);
     return expand_bitsr(static_cast<T>(x >> shift), m);
 #endif
-}
-
-template <unsigned_integral T>
-[[nodiscard]] constexpr T next_bit_permutation(T x) noexcept
-{
-    // https://graphics.stanford.edu/~seander/bithacks.html#NextBitPermutation
-    constexpr T one = 1;
-    const T t = x | (x - one);
-    if (t == static_cast<T>(~0)) {
-        return 0;
-    }
-    // Two shifts are better than shifting by + 1. We must not shift by the operand size.
-    return (t + one) | (((~t & -~t) - one) >> countr_zero(x) >> one);
 }
 
 } // namespace std::experimental

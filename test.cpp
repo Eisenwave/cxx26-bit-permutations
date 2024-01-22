@@ -154,7 +154,7 @@ void text_next_bit_permutation()
 }
 
 constexpr int seed = 0x12345;
-constexpr int default_fuzz_count = 1024 * 1024;
+constexpr int default_fuzz_count = 1024 * 1024 * 16;
 using rng_type = std::mt19937_64;
 
 template <typename T, T (&Fun)(T), T (&Naive)(T), int FuzzCount = default_fuzz_count>
@@ -187,12 +187,12 @@ void naive_fuzz_2()
 
 // clang-format off
 constexpr void (*tests[])() = {
-#ifndef __INTELLISENSE__
     test_is_pow2_or_zero,
     test_log2_floor,
     test_log2_ceil,
     test_alternate01,
 
+#ifndef __INTELLISENSE__
     test_bipp<bitwise_inclusive_right_parity>,
     test_bipp<bitwise_inclusive_right_parity_naive>,
     
@@ -211,7 +211,6 @@ constexpr void (*tests[])() = {
     text_next_bit_permutation<next_bit_permutation>,
     text_next_bit_permutation<next_bit_permutation_naive>,
     
-#if 0
     naive_fuzz_1<std::uint8_t,  reverse_bits, reverse_bits_naive>,
     naive_fuzz_1<std::uint16_t, reverse_bits, reverse_bits_naive>,
     naive_fuzz_1<std::uint32_t, reverse_bits, reverse_bits_naive>,
@@ -241,7 +240,6 @@ constexpr void (*tests[])() = {
     naive_fuzz_2<std::uint16_t, expand_bitsl, expand_bitsl_naive>,
     naive_fuzz_2<std::uint32_t, expand_bitsl, expand_bitsl_naive>,
     naive_fuzz_2<std::uint64_t, expand_bitsl, expand_bitsl_naive>,
-#endif
 
     naive_fuzz_1<std::uint8_t,  next_bit_permutation, next_bit_permutation_naive>,
     naive_fuzz_1<std::uint16_t, next_bit_permutation, next_bit_permutation_naive>,
@@ -255,9 +253,11 @@ constexpr void (*tests[])() = {
 
 int main()
 {
+    std::cout << '[' << std::string(std::size(tests), ' ') << "]\r[" << std::flush;
+
     for (void (*test)() : tests) {
         test();
+        std::cout << '=' << std::flush;
     }
-
-    std::cout << ":)" << '\n';
+    std::cout << "]\n";
 }

@@ -261,7 +261,7 @@ template <unsigned_integral T>
 template <unsigned_integral T>
 [[nodiscard]] constexpr T next_bit_permutation_naive(T x) noexcept
 {
-    int count = popcount(x);
+    const int count = popcount(x);
     do {
         ++x;
     } while (x != 0 && popcount(x) != count);
@@ -515,7 +515,7 @@ template <unsigned_integral T>
 }
 
 template <unsigned_integral T>
-constexpr T compress_bitsl(T x, T m) noexcept
+[[nodiscard]] constexpr T compress_bitsl(T x, T m) noexcept
 {
 #if defined(CXX26_BIT_PERMUTATIONS_FAST_REVERSE) && !defined(CXX26_BIT_PERMUTATIONS_FAST_POPCOUNT)
     return reverse_bits(compress_bitsr(reverse_bits(x)), reverse_bits(m)));
@@ -529,7 +529,7 @@ constexpr T compress_bitsl(T x, T m) noexcept
 }
 
 template <unsigned_integral T>
-constexpr T expand_bitsl(T x, T m) noexcept
+[[nodiscard]] constexpr T expand_bitsl(T x, T m) noexcept
 {
 #if defined(CXX26_BIT_PERMUTATIONS_FAST_REVERSE) && !defined(CXX26_BIT_PERMUTATIONS_FAST_POPCOUNT)
     return reverse_bits(expand_bitsr(reverse_bits(x)), reverse_bits(m)));

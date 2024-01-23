@@ -292,7 +292,6 @@ template <permissive_unsigned_integral T>
         return N;
     }
 
-#if 0
 #ifdef CXX26_BIT_PERMUTATIONS_GNU
 #ifdef CXX26_BIT_PERMUTATIONS_ENABLE_DEBUG_PP
 #warning Delegating countl_zero  =>  __builtin_clz
@@ -322,7 +321,6 @@ template <permissive_unsigned_integral T>
             return static_cast<int>(__lzcnt64(x | sentinel)) - (64 - N);
         }
     }
-#endif
 #endif
     if constexpr (is_pow2_or_zero(N)) {
         auto base_mask = static_cast<T>(-T { 1 });

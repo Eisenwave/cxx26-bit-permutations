@@ -127,7 +127,7 @@ concept bit_uint =
 template <int N>
 inline constexpr int digits_v<_BitInt(N)> = N;
 
-static_assert(digits_v<_BitInt(128)>::digits == 128);
+static_assert(digits_v<_BitInt(128)> == 128);
 #else
     false;
 #endif

@@ -93,6 +93,42 @@ void test_popcount()
     ASSERT_S(F(0b10010100111u) == 6);
 }
 
+template <int (&F)(std::uint8_t)>
+void test_countr_zero()
+{
+    ASSERT_S(F(0) == 8);
+    ASSERT_S(F(1) == 0);
+    ASSERT_S(F(2) == 1);
+    ASSERT_S(F(3) == 0);
+    ASSERT_S(F(4) == 2);
+    ASSERT_S(F(5) == 0);
+    ASSERT_S(F(6) == 1);
+    ASSERT_S(F(7) == 0);
+    ASSERT_S(F(8) == 3);
+
+    ASSERT_S(F(128) == 7);
+    ASSERT_S(F(129) == 0);
+    ASSERT_S(F(std::uint8_t(-1)) == 0);
+}
+
+template <int (&F)(std::uint8_t)>
+void test_countl_zero()
+{
+    ASSERT_S(F(0) == 8);
+    ASSERT_S(F(1) == 7);
+    ASSERT_S(F(2) == 6);
+    ASSERT_S(F(3) == 6);
+    ASSERT_S(F(4) == 5);
+    ASSERT_S(F(5) == 5);
+    ASSERT_S(F(6) == 5);
+    ASSERT_S(F(7) == 5);
+    ASSERT_S(F(8) == 4);
+
+    ASSERT_S(F(128) == 0);
+    ASSERT_S(F(129) == 0);
+    ASSERT_S(F(std::uint8_t(-1)) == 0);
+}
+
 template <std::uint8_t (&F)(std::uint8_t)>
 void test_bipp()
 {
@@ -273,8 +309,15 @@ constexpr void (*tests[])() = {
     test_alternate01,
 
 #ifndef __INTELLISENSE__
-    test_popcount<popcount<unsigned>>,
-    test_popcount<popcount_naive<unsigned>>,
+
+    test_popcount<popcount>,
+    test_popcount<popcount_naive>,
+
+    test_countl_zero<countl_zero>,
+    test_countl_zero<countl_zero_naive>,
+
+    test_countr_zero<countr_zero>,
+    test_countr_zero<countr_zero_naive>,
 
     test_bipp<bitwise_inclusive_right_parity>,
     test_bipp<bitwise_inclusive_right_parity_naive>,
@@ -303,11 +346,35 @@ constexpr void (*tests[])() = {
     FUZZ_INT(std::uint64_t, popcount),
     IF_U128(FUZZ_INT(detail::uint128_t, popcount),)
 
+    FUZZ_INT(std::uint8_t,  countl_zero),
+    FUZZ_INT(std::uint16_t, countl_zero),
+    FUZZ_INT(std::uint32_t, countl_zero),
+    FUZZ_INT(std::uint64_t, countl_zero),
+    IF_U128(FUZZ_INT(detail::uint128_t, countl_zero),)
+
+    FUZZ_INT(std::uint8_t,  countr_zero),
+    FUZZ_INT(std::uint16_t, countr_zero),
+    FUZZ_INT(std::uint32_t, countr_zero),
+    FUZZ_INT(std::uint64_t, countr_zero),
+    IF_U128(FUZZ_INT(detail::uint128_t, countr_zero),)
+
+    FUZZ_INT(std::uint8_t,  countl_one),
+    FUZZ_INT(std::uint16_t, countl_one),
+    FUZZ_INT(std::uint32_t, countl_one),
+    FUZZ_INT(std::uint64_t, countl_one),
+    IF_U128(FUZZ_INT(detail::uint128_t, countl_one),)
+
+    FUZZ_INT(std::uint8_t,  countr_one),
+    FUZZ_INT(std::uint16_t, countr_one),
+    FUZZ_INT(std::uint32_t, countr_one),
+    FUZZ_INT(std::uint64_t, countr_one),
+    IF_U128(FUZZ_INT(detail::uint128_t, countr_one),)
+
     FUZZ_1(std::uint8_t,  reverse_bits),
     FUZZ_1(std::uint16_t, reverse_bits),
     FUZZ_1(std::uint32_t, reverse_bits),
     FUZZ_1(std::uint64_t, reverse_bits),
-    //IF_U128(FUZZ_1(detail::uint128_t, reverse_bits),)
+    IF_U128(FUZZ_1(detail::uint128_t, reverse_bits),)
 
     FUZZ_1(std::uint8_t,  bitwise_inclusive_right_parity),
     FUZZ_1(std::uint16_t, bitwise_inclusive_right_parity),
@@ -319,13 +386,13 @@ constexpr void (*tests[])() = {
     FUZZ_1(std::uint16_t, next_bit_permutation),
     FUZZ_1(std::uint32_t, next_bit_permutation),
     FUZZ_1(std::uint64_t, next_bit_permutation),
-    //IF_U128(FUZZ_1(detail::uint128_t, next_bit_permutation),)
+    IF_U128(FUZZ_1(detail::uint128_t, next_bit_permutation),)
 
     FUZZ_1(std::uint8_t,  prev_bit_permutation),
     FUZZ_1(std::uint16_t, prev_bit_permutation),
     FUZZ_1(std::uint32_t, prev_bit_permutation),
     FUZZ_1(std::uint64_t, prev_bit_permutation),
-    //IF_U128(FUZZ_1(detail::uint128_t, prev_bit_permutation),)
+    IF_U128(FUZZ_1(detail::uint128_t, prev_bit_permutation),)
 
     naive_fuzz_2<std::uint8_t,  compress_bitsr, compress_bitsr_naive>,
     naive_fuzz_2<std::uint16_t, compress_bitsr, compress_bitsr_naive>,

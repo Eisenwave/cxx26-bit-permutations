@@ -153,20 +153,6 @@ concept permissive_unsigned_integral
     return (x & (x - 1)) == 0;
 }
 
-/// Computes `floor(log2(max(1, x)))` of an
-/// integer x.
-[[nodiscard]] constexpr int log2_floor(int x) noexcept
-{
-    return x < 1 ? 0 : digits_v<unsigned> - std::countl_zero(static_cast<unsigned>(x)) - 1;
-}
-
-/// Computes `ceil(log2(max(1, x)))` of an
-/// integer x.
-[[nodiscard]] constexpr int log2_ceil(int x) noexcept
-{
-    return log2_floor(x) + !is_pow2_or_zero(x);
-}
-
 /// @brief Creates a number with alternating
 /// groups of 0s and 1s. The least significant bit
 /// is always zero.
@@ -187,6 +173,169 @@ template <permissive_unsigned_integral T>
     }
 
     return result;
+}
+
+// Exposed as a separate function for testing purposes.
+template <permissive_unsigned_integral T>
+[[nodiscard]] constexpr T reverse_bits_naive(T x) noexcept
+{
+    constexpr int N = digits_v<T>;
+
+    // Naive fallback.
+    // O(N)
+    T result = 0;
+    for (int i = 0; i < N; ++i) {
+        result <<= 1;
+        result |= x & 1;
+        x >>= 1;
+    }
+    return result;
+}
+
+template <permissive_unsigned_integral T>
+[[nodiscard]] constexpr int countr_one_naive(T x) noexcept
+{
+    int result = 0;
+    while (x & 1) {
+        result++;
+        x >>= 1;
+    }
+    return result;
+}
+
+template <permissive_unsigned_integral T>
+[[nodiscard]] constexpr int countr_zero_naive(T x) noexcept
+{
+    return countr_one_naive(static_cast<T>(~x));
+}
+
+template <permissive_unsigned_integral T>
+[[nodiscard]] constexpr int countl_zero_naive(T x) noexcept
+{
+    return countr_zero_naive(reverse_bits_naive(x));
+}
+
+template <permissive_unsigned_integral T>
+[[nodiscard]] constexpr int countr_zero(T x) noexcept
+{
+    constexpr int N = digits_v<T>;
+
+#ifdef CXX26_BIT_PERMUTATIONS_GNU
+    constexpr int N_ull = digits_v<unsigned long long>;
+    if constexpr (N <= N_ull) {
+        if (x == 0) {
+            return N;
+        }
+        if constexpr (N <= digits_v<unsigned>) {
+            constexpr auto sentinel = (1u << (N - 1) << 1);
+            return __builtin_ctz(x | sentinel);
+        }
+        else if constexpr (N <= digits_v<unsigned long>) {
+            constexpr auto sentinel = (1ul << (N - 1) << 1);
+            return __builtin_ctzl(x | sentinel);
+        }
+        else if constexpr (N <= digits_v<unsigned long long>) {
+            constexpr auto sentinel = (1ull << (N - 1) << 1);
+            return __builtin_ctzll(x | sentinel);
+        }
+    }
+#endif
+    // TODO: MSVC
+
+    // https://graphics.stanford.edu/~seander/bithacks.html#ZerosOnRightParallel
+    constexpr int start = std::bit_ceil<unsigned>(N);
+
+    int result = N;
+    x &= -x; // isolate the lowest 1-bit
+    result -= (x != 0);
+    for (int i = start; i >>= 1;) {
+        const T mask = static_cast<T>(~alternate01<T>(i));
+        result -= ((x & mask) != 0) * i;
+    }
+    return result;
+}
+
+template <permissive_unsigned_integral T>
+[[nodiscard]] constexpr int countr_one(T x) noexcept
+{
+    return countr_zero(static_cast<T>(~x));
+}
+
+template <permissive_unsigned_integral T>
+[[nodiscard]] constexpr int countl_zero(T x) noexcept
+{
+    constexpr int N = digits_v<T>;
+
+    if (x == 0) {
+        return N;
+    }
+
+#ifdef CXX26_BIT_PERMUTATIONS_GNU
+#ifdef CXX26_BIT_PERMUTATIONS_ENABLE_DEBUG_PP
+#warning Delegating countl_zero  =>  __builtin_clz
+#endif
+    if constexpr (N <= digits_v<unsigned>) {
+        return __builtin_clz(x) - (digits_v<unsigned> - N);
+    }
+    else if constexpr (N <= digits_v<unsigned long>) {
+        return __builtin_clzl(x) - (digits_v<unsigned long> - N);
+    }
+    else if constexpr (N <= digits_v<unsigned long long>) {
+        return __builtin_clzll(x) - (digits_v<unsigned long long> - N);
+    }
+#endif
+#ifdef CXX26_BIT_PERMUTATIONS_MSVC
+#ifdef CXX26_BIT_PERMUTATIONS_ENABLE_DEBUG_PP
+#warning Delegating countl_zero  =>  __lzcnt
+#endif
+    if !consteval {
+        if constexpr (N <= 16) {
+            return static_cast<int>(__lzcnt16(x)) - (16 - N);
+        }
+        else if constexpr (N <= 32) {
+            return static_cast<int>(__lzcnt(x | sentinel)) - (32 - N);
+        }
+        else if constexpr (N <= 64) {
+            return static_cast<int>(__lzcnt64(x | sentinel)) - (64 - N);
+        }
+    }
+#endif
+    constexpr int start = std::bit_ceil<unsigned>(N);
+    auto base_mask = static_cast<T>(-T { 1 });
+    int result = 0;
+    for (int i = start; i >>= 1;) {
+        base_mask <<= i;
+        if ((x & (base_mask >> result)) == 0) {
+            result += i;
+        }
+    }
+    return result - (start - N);
+}
+
+template <permissive_unsigned_integral T>
+[[nodiscard]] constexpr int countl_one(T x) noexcept
+{
+    return countl_zero(static_cast<T>(~x));
+}
+
+template <permissive_unsigned_integral T>
+[[nodiscard]] constexpr int countl_one_naive(T x) noexcept
+{
+    return countl_zero_naive(static_cast<T>(~x));
+}
+
+/// Computes `floor(log2(max(1, x)))` of an
+/// integer x.
+[[nodiscard]] constexpr int log2_floor(int x) noexcept
+{
+    return x < 1 ? 0 : digits_v<unsigned> - countl_zero(static_cast<unsigned>(x)) - 1;
+}
+
+/// Computes `ceil(log2(max(1, x)))` of an
+/// integer x.
+[[nodiscard]] constexpr int log2_ceil(int x) noexcept
+{
+    return log2_floor(x) + !is_pow2_or_zero(x);
 }
 
 // `std::popcount` does not accept _BitInt or other extensions, so we make our own.
@@ -266,7 +415,8 @@ template <permissive_unsigned_integral T>
 }
 
 /// Each bit in `x` is converted to the parity a bit and all bits to its right.
-/// This can also be expressed as `CLMUL(x, -1)` where `CLMUL` is a carry-less multiplication.
+/// This can also be expressed as `CLMUL(x, -1)` where `CLMUL` is a carry-less
+/// multiplication.
 template <permissive_unsigned_integral T>
 [[nodiscard]] constexpr T bitwise_inclusive_right_parity(T x) noexcept
 {
@@ -285,9 +435,10 @@ template <permissive_unsigned_integral T>
         }
     }
 #endif
-    // TODO: Technically, ARM does have some support for polynomial multiplication prior to SVE2.
-    //       However, this support is fairly limited and it's not even clear whether it beats this
-    //       implementation.
+    // TODO: Technically, ARM does have some support for polynomial multiplication prior to
+    // SVE2.
+    //       However, this support is fairly limited and it's not even clear whether it
+    //       beats this implementation.
     for (int i = 1; i < N; i <<= 1) {
         x ^= x << i;
     }
@@ -306,23 +457,6 @@ template <permissive_unsigned_integral T>
         result |= static_cast<T>(parity) << i;
     }
 
-    return result;
-}
-
-// Exposed as a separate function for testing purposes.
-template <permissive_unsigned_integral T>
-[[nodiscard]] constexpr T reverse_bits_naive(T x) noexcept
-{
-    constexpr int N = digits_v<T>;
-
-    // Naive fallback.
-    // O(N)
-    T result = 0;
-    for (int i = 0; i < N; ++i) {
-        result <<= 1;
-        result |= x & 1;
-        x >>= 1;
-    }
     return result;
 }
 
@@ -378,7 +512,7 @@ template <permissive_unsigned_integral T>
     return result;
 }
 
-template <permissive_unsigned_integral T>
+template <detail::permissive_unsigned_integral T>
 [[nodiscard]] constexpr T expand_bitsl_naive(T x, T m) noexcept
 {
     const T xr = reverse_bits_naive(x);
@@ -388,7 +522,7 @@ template <permissive_unsigned_integral T>
 
 } // namespace detail
 
-template <std::unsigned_integral T>
+template <detail::permissive_unsigned_integral T>
 [[nodiscard]] constexpr T reverse_bits(T x) noexcept
 {
     constexpr int N = detail::digits_v<T>;
@@ -433,8 +567,9 @@ template <std::unsigned_integral T>
 #endif
     constexpr int N_native = detail::digits_v<size_t>;
     if constexpr (N > N_native && N % N_native == 0) {
-        // For multiples of the native size, we assume that there is a fast native implementation.
-        // We perform the naive algorithm, but for N_native bits at time, not just one.
+        // For multiples of the native size, we assume that there is a fast native
+        // implementation. We perform the naive algorithm, but for N_native bits at time, not
+        // just one.
         T result = 0;
         for (int i = 0; i < N; i += N_native) {
             result <<= N_native;
@@ -450,7 +585,9 @@ template <std::unsigned_integral T>
         int start_i = N;
 
         // If byteswap does what we want, we can skip a few iterations of the subsequent loop.
-        if constexpr (detail::is_pow2_or_zero(byte_bits) && N >= byte_bits) {
+        if constexpr (detail::is_pow2_or_zero(byte_bits) && N >= byte_bits
+                      && std::unsigned_integral<T>) {
+            // TODO: implement detail::byteswap so that we can keep using this
             x = std::byteswap(x);
             start_i = byte_bits;
         }
@@ -464,7 +601,7 @@ template <std::unsigned_integral T>
     }
     else {
 #ifdef CXX26_BIT_PERMUTATIONS_CLANG
-        constexpr int M = bit_ceil<unsigned>(N);
+        constexpr int M = std::bit_ceil<unsigned>(N);
         static_assert(M != N);
         return reverse_bits(static_cast<_BitInt(M)>(x)) >> (M - N);
 #else
@@ -473,7 +610,7 @@ template <std::unsigned_integral T>
     }
 }
 
-template <std::unsigned_integral T>
+template <detail::permissive_unsigned_integral T>
 [[nodiscard]] constexpr T next_bit_permutation(T x) noexcept
 {
     // https://graphics.stanford.edu/~seander/bithacks.html#NextBitPermutation
@@ -483,10 +620,10 @@ template <std::unsigned_integral T>
         return 0;
     }
     // Two shifts are better than shifting by + 1. We must not shift by the operand size.
-    return (t + one) | (((~t & -~t) - one) >> std::countr_zero(x) >> one);
+    return (t + one) | (((~t & -~t) - one) >> detail::countr_zero(x) >> one);
 }
 
-template <std::unsigned_integral T>
+template <detail::permissive_unsigned_integral T>
 [[nodiscard]] constexpr T prev_bit_permutation(T x) noexcept
 {
     constexpr T one = 1;
@@ -495,7 +632,8 @@ template <std::unsigned_integral T>
         return 0;
     }
     const T trailing_ones = x ^ trailing_ones_cleared;
-    const int shift = std::countr_zero(trailing_ones_cleared) - std::countr_one(trailing_ones) - 1;
+    const int shift
+        = detail::countr_zero(trailing_ones_cleared) - detail::countr_one(trailing_ones) - 1;
 
     return static_cast<T>(trailing_ones_cleared - one) >> shift << shift;
 }
@@ -544,8 +682,8 @@ template <detail::permissive_unsigned_integral T>
 #endif
     constexpr int N_native = detail::digits_v<size_t>;
     if constexpr (N > N_native) {
-        // For integer sizes above the native size, we assume that a fast native implementation is
-        // provided. We then perform the algorithm digit by digit, where a digit is a native
+        // For integer sizes above the native size, we assume that a fast native implementation
+        // is provided. We then perform the algorithm digit by digit, where a digit is a native
         // integer.
         T result = 0;
         int offset = 0;

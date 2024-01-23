@@ -8,6 +8,7 @@ This project provides a single-header reference implementation for the functions
 
 - `reverse_bits`
 - `next_bit_permutation`
+- `prev_bit_permutation`
 - `compress_bitr`
 - `expand_bitsr`
 - `compress_bitsl`

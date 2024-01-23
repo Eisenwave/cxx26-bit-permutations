@@ -153,6 +153,31 @@ void text_next_bit_permutation()
     ASSERT_S(F(224) == 0);
 }
 
+template <std::uint8_t (&F)(std::uint8_t)>
+void text_prev_bit_permutation()
+{
+    ASSERT_S(F(0) == 0);
+    ASSERT_S(F(2) == 1);
+    ASSERT_S(F(4) == 2);
+    ASSERT_S(F(5) == 3);
+    ASSERT_S(F(8) == 4);
+    ASSERT_S(F(6) == 5);
+    ASSERT_S(F(9) == 6);
+    ASSERT_S(F(11) == 7);
+
+    ASSERT_S(F(16) == 8);
+    ASSERT_S(F(10) == 9);
+    ASSERT_S(F(12) == 10);
+    ASSERT_S(F(13) == 11);
+    ASSERT_S(F(17) == 12);
+    ASSERT_S(F(14) == 13);
+    ASSERT_S(F(19) == 14);
+    ASSERT_S(F(23) == 15);
+
+    ASSERT_S(F(1) == 0);
+    ASSERT_S(F(7) == 0);
+}
+
 constexpr int seed = 0x12345;
 #ifndef FUZZ_COUNT
 constexpr int default_fuzz_count = 1024 * 1024 * 16;
@@ -214,6 +239,9 @@ constexpr void (*tests[])() = {
 
     text_next_bit_permutation<next_bit_permutation>,
     text_next_bit_permutation<next_bit_permutation_naive>,
+
+    text_prev_bit_permutation<prev_bit_permutation>,
+    text_prev_bit_permutation<prev_bit_permutation_naive>,
     
     naive_fuzz_1<std::uint8_t,  reverse_bits, reverse_bits_naive>,
     naive_fuzz_1<std::uint16_t, reverse_bits, reverse_bits_naive>,
@@ -249,6 +277,11 @@ constexpr void (*tests[])() = {
     naive_fuzz_1<std::uint16_t, next_bit_permutation, next_bit_permutation_naive>,
     naive_fuzz_1<std::uint32_t, next_bit_permutation, next_bit_permutation_naive>,
     naive_fuzz_1<std::uint64_t, next_bit_permutation, next_bit_permutation_naive>,
+
+    naive_fuzz_1<std::uint8_t,  prev_bit_permutation, prev_bit_permutation_naive>,
+    naive_fuzz_1<std::uint16_t, prev_bit_permutation, prev_bit_permutation_naive>,
+    naive_fuzz_1<std::uint32_t, prev_bit_permutation, prev_bit_permutation_naive>,
+    naive_fuzz_1<std::uint64_t, prev_bit_permutation, prev_bit_permutation_naive>,
 #endif
 };
 // clang-format on

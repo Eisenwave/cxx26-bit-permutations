@@ -227,6 +227,14 @@ template <unsigned_integral T>
 }
 
 template <unsigned_integral T>
+[[nodiscard]] constexpr T prev_bit_permutation_naive(T x) noexcept
+{
+    const int count = popcount(x);
+    while (x != 0 && popcount(--x) != count) { }
+    return x;
+}
+
+template <unsigned_integral T>
 [[nodiscard]] constexpr T compress_bitsr_naive(T x, T m) noexcept
 {
     T result = 0;
@@ -364,6 +372,22 @@ template <unsigned_integral T>
     }
     // Two shifts are better than shifting by + 1. We must not shift by the operand size.
     return (t + one) | (((~t & -~t) - one) >> countr_zero(x) >> one);
+}
+
+template <unsigned_integral T>
+[[nodiscard]] constexpr T prev_bit_permutation(T x) noexcept
+{
+    constexpr T one = 1;
+
+    const T trailing_ones_cleared = (x & (x + one));
+    if (trailing_ones_cleared == 0) {
+        return 0;
+    }
+    const T trailing_ones = x ^ trailing_ones_cleared;
+    const int trailing_ones_count = countr_one(trailing_ones);
+    const int shift = countr_zero(trailing_ones_cleared) - trailing_ones_count - 1;
+
+    return (trailing_ones_cleared - 1) >> shift << shift;
 }
 
 template <unsigned_integral T>

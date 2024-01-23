@@ -133,6 +133,7 @@ static_assert(digits_v<_BitInt(128)> == 128);
 #endif
 
 #ifdef CXX26_BIT_PERMUTATIONS_GNU
+#define CXX26_BIT_PERMUTATIONS_U128
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 using uint128_t = unsigned __int128;
@@ -184,6 +185,82 @@ template <permissive_unsigned_integral T>
         result |= result << i;
     }
 
+    return result;
+}
+
+// std::popcount does not accept _BitInt or other extensions, so we make our own.
+template <permissive_unsigned_integral T>
+[[nodiscard]] constexpr int popcount(T x) noexcept
+{
+    constexpr int N = digits_v<T>;
+
+#ifdef CXX26_BIT_PERMUTATIONS_GNU
+    if constexpr (N <= digits_v<unsigned>) {
+        return __builtin_popcount(x);
+    }
+    else if constexpr (N <= digits_v<unsigned long>) {
+        return __builtin_popcountl(x);
+    }
+    else if constexpr (N <= digits_v<unsigned long long>) {
+        return __builtin_popcountll(x);
+    }
+#endif
+#ifdef CXX26_BIT_PERMUTATIONS_MSVC
+    if !consteval {
+        if constexpr (N <= digits_v<unsigned short>) {
+            return static_cast<int>(__popcnt16(x));
+        }
+        else if constexpr (N <= digits_v<unsigned int>) {
+            return static_cast<int>(__popcnt(x));
+        }
+        else if constexpr (N <= 64) {
+            return static_cast<int>(__popcnt64(x));
+        }
+    }
+#endif
+    constexpr int N_native = digits_v<size_t>;
+    if constexpr (N > N_native) {
+        int sum = 0;
+        for (int i = 0; i < N; i += N_native) {
+            sum += popcount(static_cast<size_t>(x));
+            x >>= N_native;
+        }
+        return sum;
+    }
+    else if constexpr (N == 1) {
+        return x;
+    }
+    else if constexpr (N == 2) {
+        return (x >> 1) + (x & 1);
+    }
+    else if constexpr (N == 3) {
+        return (x >> 2) + ((x >> 1) & 1) + (x & 1);
+    }
+    else {
+        constexpr auto mask1 = static_cast<T>(~alternate01<T>(1));
+        constexpr auto mask2 = static_cast<T>(~alternate01<T>(2));
+
+        // TODO: investigate whether this really works for non-power-of-two integers
+        //       I suspected that it does.
+        T result = x - ((x >> 1) & mask1);
+        result = ((result >> 2) & mask2) + (result & mask2);
+
+        for (int i = 4; i < N; i <<= 1) {
+            const auto mask = static_cast<T>(~alternate01<T>(i));
+            result = ((result >> i) + result) & mask;
+        }
+        return result;
+    }
+}
+
+template <permissive_unsigned_integral T>
+[[nodiscard]] constexpr int popcount_naive(T x) noexcept
+{
+    int result = 0;
+    while (x != 0) {
+        result += x & 1;
+        x >>= 1;
+    }
     return result;
 }
 

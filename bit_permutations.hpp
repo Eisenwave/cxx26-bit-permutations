@@ -120,17 +120,28 @@ template <typename T>
 inline constexpr int digits_v = std::numeric_limits<T>::digits;
 
 template <typename T>
-concept bit_uint =
+struct is_bit_uint : std::false_type { };
+
 #ifdef CXX26_BIT_PERMUTATIONS_CLANG
-    requires(T x) { []<int N>(unsigned _BitInt(N)) {}(x); };
+#define CXX26_BIT_PERMUTATIONS_BITINT
+template <int N>
+struct is_bit_uint<unsigned _BitInt(N)> : std::true_type { };
+
+static_assert(is_bit_uint<unsigned _BitInt(2)>::value);
+static_assert(is_bit_uint<unsigned _BitInt(8)>::value);
 
 template <int N>
 inline constexpr int digits_v<_BitInt(N)> = N;
 
+template <int N>
+inline constexpr int digits_v<unsigned _BitInt(N)> = N;
+
 static_assert(digits_v<_BitInt(128)> == 128);
-#else
-    false;
+static_assert(digits_v<unsigned _BitInt(128)> == 128);
 #endif
+
+template <typename T>
+concept bit_uint = is_bit_uint<T>::value;
 
 #ifdef CXX26_BIT_PERMUTATIONS_GNU
 #define CXX26_BIT_PERMUTATIONS_U128
@@ -243,16 +254,27 @@ template <permissive_unsigned_integral T>
     // TODO: MSVC
 
     // https://graphics.stanford.edu/~seander/bithacks.html#ZerosOnRightParallel
-    constexpr int start = std::bit_ceil<unsigned>(N);
-
-    int result = N;
-    x &= -x; // isolate the lowest 1-bit
-    result -= (x != 0);
-    for (int i = start; i >>= 1;) {
-        const T mask = static_cast<T>(~alternate01<T>(i));
-        result -= ((x & mask) != 0) * i;
+    if constexpr (is_pow2_or_zero(N)) {
+        int result = N;
+        x &= -x; // isolate the lowest 1-bit
+        result -= (x != 0);
+        for (int i = N; i >>= 1;) {
+            const T mask = static_cast<T>(~alternate01<T>(i));
+            result -= ((x & mask) != 0) * i;
+        }
+        return result;
     }
-    return result;
+#ifdef CXX26_BIT_PERMUTATIONS_BITINT
+    else {
+        constexpr int M = std::bit_ceil<unsigned>(N);
+        constexpr auto sentinel = (static_cast<unsigned _BitInt(M)>(1) << (N - 1) << 1);
+        return countr_zero(x | sentinel);
+    }
+#else
+    else {
+        return countr_zero_naive(x);
+    }
+#endif
 }
 
 template <permissive_unsigned_integral T>
@@ -270,6 +292,7 @@ template <permissive_unsigned_integral T>
         return N;
     }
 
+#if 0
 #ifdef CXX26_BIT_PERMUTATIONS_GNU
 #ifdef CXX26_BIT_PERMUTATIONS_ENABLE_DEBUG_PP
 #warning Delegating countl_zero  =>  __builtin_clz
@@ -300,16 +323,28 @@ template <permissive_unsigned_integral T>
         }
     }
 #endif
-    constexpr int start = std::bit_ceil<unsigned>(N);
-    auto base_mask = static_cast<T>(-T { 1 });
-    int result = 0;
-    for (int i = start; i >>= 1;) {
-        base_mask <<= i;
-        if ((x & (base_mask >> result)) == 0) {
-            result += i;
+#endif
+    if constexpr (is_pow2_or_zero(N)) {
+        auto base_mask = static_cast<T>(-T { 1 });
+        int result = 0;
+        for (int i = N; i >>= 1;) {
+            base_mask <<= i;
+            if ((x & (base_mask >> result)) == 0) {
+                result += i;
+            }
         }
+        return result;
     }
-    return result - (start - N);
+#ifdef CXX26_BIT_PERMUTATIONS_BITINT
+    else {
+        constexpr int M = std::bit_ceil<unsigned>(N);
+        return countl_zero(static_cast<unsigned _BitInt(M)>(x)) - (M - N);
+    }
+#else
+    else {
+        return countl_zero_naive(x);
+    }
+#endif
 }
 
 template <permissive_unsigned_integral T>
@@ -603,7 +638,7 @@ template <detail::permissive_unsigned_integral T>
 #ifdef CXX26_BIT_PERMUTATIONS_CLANG
         constexpr int M = std::bit_ceil<unsigned>(N);
         static_assert(M != N);
-        return reverse_bits(static_cast<_BitInt(M)>(x)) >> (M - N);
+        return reverse_bits(static_cast<unsigned _BitInt(M)>(x)) >> (M - N);
 #else
         return detail::reverse_bits_naive(x);
 #endif

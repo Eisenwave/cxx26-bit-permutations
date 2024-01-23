@@ -116,6 +116,35 @@ namespace std::experimental {
 
 namespace detail {
 
+template <typename T>
+inline constexpr int digits_v = numeric_limits<T>::digits;
+
+template <typename T>
+concept bit_uint =
+#ifdef CXX26_BIT_PERMUTATIONS_CLANG
+    requires(T x) { []<int N>(unsigned _BitInt(N)) {}(x); };
+
+template <int N>
+inline constexpr int digits_v<_BitInt(N)> = N;
+
+static_assert(digits_v<_BitInt(128)>::digits == 128);
+#else
+    false;
+#endif
+
+#ifdef CXX26_BIT_PERMUTATIONS_GNU
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+using uint128_t = unsigned __int128;
+#pragma GCC diagnostic pop
+static_assert(numeric_limits<uint128_t>::digits == 128);
+#else
+struct uint128_t;
+#endif
+
+template <typename T>
+concept permissive_unsigned_integral = unsigned_integral<T> || bit_uint<T> || same_as<T, uint128_t>;
+
 /// Simpler form of `has_single_bit()` which doesn't complain about `int`.
 [[nodiscard]] constexpr int is_pow2_or_zero(int x) noexcept
 {
@@ -126,7 +155,7 @@ namespace detail {
 /// integer x.
 [[nodiscard]] constexpr int log2_floor(int x) noexcept
 {
-    return x < 1 ? 0 : numeric_limits<unsigned>::digits - countl_zero(static_cast<unsigned>(x)) - 1;
+    return x < 1 ? 0 : digits_v<unsigned> - countl_zero(static_cast<unsigned>(x)) - 1;
 }
 
 /// Computes `ceil(log2(max(1, x)))` of an
@@ -139,16 +168,17 @@ namespace detail {
 /// @brief Creates a number with alternating
 /// groups of 0s and 1s. The least significant bit
 /// is always zero.
-template <unsigned_integral T>
+template <permissive_unsigned_integral T>
 [[nodiscard]] constexpr T alternate01(int group_size = 1) noexcept
 {
-    constexpr int N = numeric_limits<T>::digits;
+    constexpr int N = digits_v<T>;
+    constexpr T one = 1;
 
     if (group_size == 0 || group_size >= N) {
         return 0;
     }
 
-    T result = ((T(1) << group_size) - 1) << group_size;
+    T result = ((one << group_size) - one) << group_size;
 
     for (int i = group_size << 1; i < N; i <<= 1) {
         result |= result << i;
@@ -159,10 +189,10 @@ template <unsigned_integral T>
 
 /// Each bit in `x` is converted to the parity a bit and all bits to its right.
 /// This can also be expressed as `CLMUL(x, -1)` where `CLMUL` is a carry-less multiplication.
-template <unsigned_integral T>
+template <permissive_unsigned_integral T>
 [[nodiscard]] constexpr T bitwise_inclusive_right_parity(T x) noexcept
 {
-    constexpr int N = numeric_limits<T>::digits;
+    constexpr int N = digits_v<T>;
 
 #ifdef CXX26_BIT_PERMUTATIONS_X86_PCLMUL
 #ifdef CXX26_BIT_PERMUTATIONS_ENABLE_DEBUG_PP
@@ -186,10 +216,10 @@ template <unsigned_integral T>
     return x;
 }
 
-template <unsigned_integral T>
+template <permissive_unsigned_integral T>
 [[nodiscard]] constexpr T bitwise_inclusive_right_parity_naive(T x) noexcept
 {
-    constexpr int N = numeric_limits<T>::digits;
+    constexpr int N = digits_v<T>;
 
     T result = 0;
     bool parity = false;
@@ -202,10 +232,10 @@ template <unsigned_integral T>
 }
 
 // Exposed as a separate function for testing purposes.
-template <unsigned_integral T>
+template <permissive_unsigned_integral T>
 [[nodiscard]] constexpr T reverse_bits_naive(T x) noexcept
 {
-    constexpr int N = numeric_limits<T>::digits;
+    constexpr int N = digits_v<T>;
 
     // Naive fallback.
     // O(N)
@@ -234,11 +264,13 @@ template <unsigned_integral T>
     return x;
 }
 
-template <unsigned_integral T>
+template <permissive_unsigned_integral T>
 [[nodiscard]] constexpr T compress_bitsr_naive(T x, T m) noexcept
 {
+    constexpr int N = digits_v<T>;
+
     T result = 0;
-    for (int i = 0, j = 0; i != numeric_limits<T>::digits; ++i) {
+    for (int i = 0, j = 0; i != N; ++i) {
         const bool mask_bit = (m >> i) & 1;
         result |= (mask_bit & (x >> i)) << j;
         j += mask_bit;
@@ -246,7 +278,7 @@ template <unsigned_integral T>
     return result;
 }
 
-template <unsigned_integral T>
+template <permissive_unsigned_integral T>
 [[nodiscard]] constexpr T compress_bitsl_naive(T x, T m) noexcept
 {
     const T xr = reverse_bits_naive(x);
@@ -254,11 +286,13 @@ template <unsigned_integral T>
     return reverse_bits_naive(compress_bitsr_naive(xr, mr));
 }
 
-template <unsigned_integral T>
+template <permissive_unsigned_integral T>
 [[nodiscard]] constexpr T expand_bitsr_naive(T x, T m) noexcept
 {
+    constexpr int N = digits_v<T>;
+
     T result = 0;
-    for (int i = 0, j = 0; i != numeric_limits<T>::digits; ++i) {
+    for (int i = 0, j = 0; i != N; ++i) {
         const bool mask_bit = (m >> i) & 1;
         result |= (mask_bit & (x >> j)) << i;
         j += mask_bit;
@@ -266,7 +300,7 @@ template <unsigned_integral T>
     return result;
 }
 
-template <unsigned_integral T>
+template <permissive_unsigned_integral T>
 [[nodiscard]] constexpr T expand_bitsl_naive(T x, T m) noexcept
 {
     const T xr = reverse_bits_naive(x);
@@ -279,7 +313,7 @@ template <unsigned_integral T>
 template <unsigned_integral T>
 [[nodiscard]] constexpr T reverse_bits(T x) noexcept
 {
-    constexpr int N = numeric_limits<T>::digits;
+    constexpr int N = detail::digits_v<T>;
 
 // TODO: for integers >= 256-bit, it may be better to recursively split them into two halves until
 //       the 64-bit version is available, and reassemble.
@@ -307,19 +341,19 @@ template <unsigned_integral T>
 #warning Delegating reverse_bits  =>  __rbit
 #endif
     if !consteval {
-        constexpr int N_uint = numeric_limits<unsigned>::digits;
+        constexpr int N_uint = detail::digits_v<unsigned>;
         if constexpr (N <= N_uint) {
             return static_cast<T>(__rbit(static_cast<unsigned>(x)) >> (N_uint - N));
         }
-        else if constexpr (N == numeric_limits<unsigned long>::digits) {
+        else if constexpr (N == detail::digits_v<unsigned long>) {
             return static_cast<T>(__rbitl(x));
         }
-        else if constexpr (N == numeric_limits<unsigned long long>::digits) {
+        else if constexpr (N == detail::digits_v<unsigned long long>) {
             return static_cast<T>(__rbitll(x));
         }
     }
 #endif
-    constexpr int N_native = numeric_limits<size_t>::digits;
+    constexpr int N_native = detail::digits_v<size_t>;
     if constexpr (N > N_native && N % N_native == 0) {
         // For multiples of the native size, we assume that there is a fast native implementation.
         // We perform the naive algorithm, but for N_native bits at time, not just one.
@@ -334,7 +368,7 @@ template <unsigned_integral T>
     else if constexpr (detail::is_pow2_or_zero(N)) {
         // Byte-swap and parallel swap technique for conventional architectures.
         // O(log N)
-        constexpr int byte_bits = numeric_limits<unsigned char>::digits;
+        constexpr int byte_bits = detail::digits_v<unsigned char>;
         int start_i = N;
 
         // If byteswap does what we want, we can skip a few iterations of the subsequent loop.
@@ -378,22 +412,20 @@ template <unsigned_integral T>
 [[nodiscard]] constexpr T prev_bit_permutation(T x) noexcept
 {
     constexpr T one = 1;
-
-    const T trailing_ones_cleared = (x & (x + one));
+    const T trailing_ones_cleared = x & (x + one);
     if (trailing_ones_cleared == 0) {
         return 0;
     }
     const T trailing_ones = x ^ trailing_ones_cleared;
-    const int trailing_ones_count = countr_one(trailing_ones);
-    const int shift = countr_zero(trailing_ones_cleared) - trailing_ones_count - 1;
+    const int shift = countr_zero(trailing_ones_cleared) - countr_one(trailing_ones) - 1;
 
-    return (trailing_ones_cleared - 1) >> shift << shift;
+    return static_cast<T>(trailing_ones_cleared - one) >> shift << shift;
 }
 
 template <unsigned_integral T>
 [[nodiscard]] constexpr T compress_bitsr(T x, T m) noexcept
 {
-    constexpr int N = numeric_limits<T>::digits;
+    constexpr int N = detail::digits_v<T>;
 
 #ifdef CXX26_BIT_PERMUTATIONS_X86_PEXT
 #ifdef CXX26_BIT_PERMUTATIONS_ENABLE_DEBUG_PP
@@ -432,7 +464,7 @@ template <unsigned_integral T>
         }
     }
 #endif
-    constexpr int N_native = numeric_limits<size_t>::digits;
+    constexpr int N_native = detail::digits_v<size_t>;
     if constexpr (N > N_native) {
         // For integer sizes above the native size, we assume that a fast native implementation is
         // provided. We then perform the algorithm digit by digit, where a digit is a native
@@ -471,7 +503,7 @@ template <unsigned_integral T>
 template <unsigned_integral T>
 [[nodiscard]] constexpr T expand_bitsr(T x, T m) noexcept
 {
-    constexpr int N = numeric_limits<T>::digits;
+    constexpr int N = detail::digits_v<T>;
     constexpr int log_N = detail::log2_floor(N);
 
 #ifdef CXX26_BIT_PERMUTATIONS_X86_PDEP
@@ -512,7 +544,7 @@ template <unsigned_integral T>
         }
     }
 #endif
-    constexpr int N_native = numeric_limits<size_t>::digits;
+    constexpr int N_native = detail::digits_v<size_t>;
     if constexpr (N > N_native) {
         // Digit-by-digit approach, same as in expand_bitsr.
         T result = 0;
@@ -552,13 +584,15 @@ template <unsigned_integral T>
 template <unsigned_integral T>
 [[nodiscard]] constexpr T compress_bitsl(T x, T m) noexcept
 {
+    constexpr int N = detail::digits_v<T>;
+
 #if defined(CXX26_BIT_PERMUTATIONS_FAST_REVERSE) && !defined(CXX26_BIT_PERMUTATIONS_FAST_POPCOUNT)
     return reverse_bits(compress_bitsr(reverse_bits(x)), reverse_bits(m)));
 #else
     if (m == 0) { // Prevents shift which is >= the operand size.
         return 0;
     }
-    int shift = numeric_limits<T>::digits - popcount(m);
+    int shift = N - popcount(m);
     return static_cast<T>(compress_bitsr(x, m) << shift);
 #endif
 }
@@ -566,13 +600,15 @@ template <unsigned_integral T>
 template <unsigned_integral T>
 [[nodiscard]] constexpr T expand_bitsl(T x, T m) noexcept
 {
+    constexpr int N = detail::digits_v<T>;
+
 #if defined(CXX26_BIT_PERMUTATIONS_FAST_REVERSE) && !defined(CXX26_BIT_PERMUTATIONS_FAST_POPCOUNT)
     return reverse_bits(expand_bitsr(reverse_bits(x)), reverse_bits(m)));
 #else
     if (m == 0) {
         return 0;
     }
-    const int shift = numeric_limits<T>::digits - popcount(m);
+    const int shift = N - popcount(m);
     return expand_bitsr(static_cast<T>(x >> shift), m);
 #endif
 }

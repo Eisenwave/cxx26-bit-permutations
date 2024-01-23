@@ -6,8 +6,8 @@
 #include <random>
 #include <source_location>
 
-using namespace std::experimental;
-using namespace std::experimental::detail;
+using namespace cxx26bp;
+using namespace cxx26bp::detail;
 
 namespace {
 
@@ -83,6 +83,14 @@ void test_alternate01()
     ASSERT_S(alternate01<std::uint32_t>(3) == 0x38e3'8e38);
     ASSERT_S(alternate01<std::uint32_t>(4) == 0xf0f0'f0f0);
     ASSERT_S(alternate01<std::uint32_t>(8) == 0xff00'ff00);
+}
+
+template <int (&F)(unsigned)>
+void test_popcount()
+{
+    ASSERT_S(F(0) == 0);
+    ASSERT_S(F(-1u) == detail::digits_v<unsigned>);
+    ASSERT_S(F(0b10010100111u) == 6);
 }
 
 template <std::uint8_t (&F)(std::uint8_t)>
@@ -185,17 +193,50 @@ constexpr int default_fuzz_count = 1024 * 1024 * 16;
 constexpr int default_fuzz_count = FUZZ_COUNT;
 #endif
 using rng_type = std::mt19937_64;
+using distr_type = std::uniform_int_distribution<uint64_t>;
+
+template <typename T>
+constexpr T rand_int(rng_type& rng, distr_type& d)
+{
+    constexpr int N = detail::digits_v<T>;
+
+    if constexpr (N <= 64) {
+        return static_cast<uint64_t>(d(rng));
+    }
+    else {
+        T result = 0;
+        for (int i = 0; i < N; i += 64) {
+            result <<= 64;
+            result |= d(rng);
+        }
+        return result;
+    }
+}
 
 template <typename T, T (&Fun)(T), T (&Naive)(T), int FuzzCount = default_fuzz_count>
 void naive_fuzz_1()
 {
     rng_type rng { seed };
-    std::uniform_int_distribution<T> d;
+    std::uniform_int_distribution<uint64_t> d;
 
     for (int i = 0; i < FuzzCount; ++i) {
-        const T x = d(rng);
+        const T x = rand_int<T>(rng, d);
         const T actual = Fun(x);
         const T naive = Naive(x);
+        ASSERT(actual == naive);
+    }
+}
+
+template <typename T, int (&Fun)(T), int (&Naive)(T), int FuzzCount = default_fuzz_count>
+void naive_fuzz_int()
+{
+    rng_type rng { seed };
+    std::uniform_int_distribution<uint64_t> d;
+
+    for (int i = 0; i < FuzzCount; ++i) {
+        const int x = rand_int<T>(rng, d);
+        const int actual = Fun(x);
+        const int naive = Naive(x);
         ASSERT(actual == naive);
     }
 }
@@ -204,15 +245,25 @@ template <typename T, T (&Fun)(T, T), T (&Naive)(T, T), int FuzzCount = default_
 void naive_fuzz_2()
 {
     rng_type rng { seed };
-    std::uniform_int_distribution<T> d;
+    std::uniform_int_distribution<uint64_t> d;
 
     for (int i = 0; i < FuzzCount; ++i) {
-        const T x = d(rng), m = d(rng);
+        const T x = rand_int<T>(rng, d);
+        const T m = rand_int<T>(rng, d);
         const T actual = Fun(x, m);
         const T naive = Naive(x, m);
         ASSERT(actual == naive);
     }
 }
+
+#ifdef CXX26_BIT_PERMUTATIONS_U128
+#define IF_U128(...) __VA_ARGS__
+#else
+#define IF_U128(...)
+#endif
+
+#define FUZZ_1(T, f) naive_fuzz_1<T, f<T>, f##_naive<T>>
+#define FUZZ_INT(T, f) naive_fuzz_int<T, f<T>, f##_naive<T>>
 
 // clang-format off
 constexpr void (*tests[])() = {
@@ -221,9 +272,10 @@ constexpr void (*tests[])() = {
     test_log2_ceil,
     test_alternate01,
 
-#define FUZZ_1(T, f) naive_fuzz_1<T, f, f##_naive>
-
 #ifndef __INTELLISENSE__
+    test_popcount<popcount<unsigned>>,
+    test_popcount<popcount_naive<unsigned>>,
+
     test_bipp<bitwise_inclusive_right_parity>,
     test_bipp<bitwise_inclusive_right_parity_naive>,
     
@@ -245,29 +297,35 @@ constexpr void (*tests[])() = {
     text_prev_bit_permutation<prev_bit_permutation>,
     text_prev_bit_permutation<prev_bit_permutation_naive>,
     
+    FUZZ_INT(std::uint8_t,  popcount),
+    FUZZ_INT(std::uint16_t, popcount),
+    FUZZ_INT(std::uint32_t, popcount),
+    FUZZ_INT(std::uint64_t, popcount),
+    IF_U128(FUZZ_INT(detail::uint128_t, popcount),)
+
     FUZZ_1(std::uint8_t,  reverse_bits),
     FUZZ_1(std::uint16_t, reverse_bits),
     FUZZ_1(std::uint32_t, reverse_bits),
     FUZZ_1(std::uint64_t, reverse_bits),
-    //IF_U128(FUZZ_1(u128, reverse_bits),)
+    //IF_U128(FUZZ_1(detail::uint128_t, reverse_bits),)
 
     FUZZ_1(std::uint8_t,  bitwise_inclusive_right_parity),
     FUZZ_1(std::uint16_t, bitwise_inclusive_right_parity),
     FUZZ_1(std::uint32_t, bitwise_inclusive_right_parity),
     FUZZ_1(std::uint64_t, bitwise_inclusive_right_parity),
-    //IF_U128(FUZZ_1(u128, bitwise_inclusive_right_parity),)
+    IF_U128(FUZZ_1(detail::uint128_t, bitwise_inclusive_right_parity),)
 
     FUZZ_1(std::uint8_t,  next_bit_permutation),
     FUZZ_1(std::uint16_t, next_bit_permutation),
     FUZZ_1(std::uint32_t, next_bit_permutation),
     FUZZ_1(std::uint64_t, next_bit_permutation),
-    //IF_U128(FUZZ_1(u128, next_bit_permutation),)
+    //IF_U128(FUZZ_1(detail::uint128_t, next_bit_permutation),)
 
     FUZZ_1(std::uint8_t,  prev_bit_permutation),
     FUZZ_1(std::uint16_t, prev_bit_permutation),
     FUZZ_1(std::uint32_t, prev_bit_permutation),
     FUZZ_1(std::uint64_t, prev_bit_permutation),
-    //IF_U128(FUZZ_1(u128, prev_bit_permutation),)
+    //IF_U128(FUZZ_1(detail::uint128_t, prev_bit_permutation),)
 
     naive_fuzz_2<std::uint8_t,  compress_bitsr, compress_bitsr_naive>,
     naive_fuzz_2<std::uint16_t, compress_bitsr, compress_bitsr_naive>,

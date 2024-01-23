@@ -13,7 +13,7 @@ This project provides a single-header reference implementation for the functions
 - `compress_bitsl`
 - `expand_bitsl`
 
-All functions are located in namespace `std::experimental`.
+All functions are located in namespace `cxx26bp`.
 
 This implementation aims to provide the fastest possible library implementation for each of these
 functions, using any possible hardware support.

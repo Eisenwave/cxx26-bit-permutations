@@ -112,12 +112,12 @@
 #include <cstdint>
 #include <limits>
 
-namespace std::experimental {
+namespace cxx26bp {
 
 namespace detail {
 
 template <typename T>
-inline constexpr int digits_v = numeric_limits<T>::digits;
+inline constexpr int digits_v = std::numeric_limits<T>::digits;
 
 template <typename T>
 concept bit_uint =
@@ -138,13 +138,14 @@ static_assert(digits_v<_BitInt(128)> == 128);
 #pragma GCC diagnostic ignored "-Wpedantic"
 using uint128_t = unsigned __int128;
 #pragma GCC diagnostic pop
-static_assert(numeric_limits<uint128_t>::digits == 128);
+static_assert(std::numeric_limits<uint128_t>::digits == 128);
 #else
 struct uint128_t;
 #endif
 
 template <typename T>
-concept permissive_unsigned_integral = unsigned_integral<T> || bit_uint<T> || same_as<T, uint128_t>;
+concept permissive_unsigned_integral
+    = std::unsigned_integral<T> || bit_uint<T> || std::same_as<T, uint128_t>;
 
 /// Simpler form of `has_single_bit()` which doesn't complain about `int`.
 [[nodiscard]] constexpr int is_pow2_or_zero(int x) noexcept
@@ -156,7 +157,7 @@ concept permissive_unsigned_integral = unsigned_integral<T> || bit_uint<T> || sa
 /// integer x.
 [[nodiscard]] constexpr int log2_floor(int x) noexcept
 {
-    return x < 1 ? 0 : digits_v<unsigned> - countl_zero(static_cast<unsigned>(x)) - 1;
+    return x < 1 ? 0 : digits_v<unsigned> - std::countl_zero(static_cast<unsigned>(x)) - 1;
 }
 
 /// Computes `ceil(log2(max(1, x)))` of an
@@ -188,7 +189,7 @@ template <permissive_unsigned_integral T>
     return result;
 }
 
-// std::popcount does not accept _BitInt or other extensions, so we make our own.
+// `std::popcount` does not accept _BitInt or other extensions, so we make our own.
 template <permissive_unsigned_integral T>
 [[nodiscard]] constexpr int popcount(T x) noexcept
 {
@@ -325,7 +326,7 @@ template <permissive_unsigned_integral T>
     return result;
 }
 
-template <unsigned_integral T>
+template <permissive_unsigned_integral T>
 [[nodiscard]] constexpr T next_bit_permutation_naive(T x) noexcept
 {
     const int count = popcount(x);
@@ -333,7 +334,7 @@ template <unsigned_integral T>
     return x;
 }
 
-template <unsigned_integral T>
+template <permissive_unsigned_integral T>
 [[nodiscard]] constexpr T prev_bit_permutation_naive(T x) noexcept
 {
     const int count = popcount(x);
@@ -387,7 +388,7 @@ template <permissive_unsigned_integral T>
 
 } // namespace detail
 
-template <unsigned_integral T>
+template <std::unsigned_integral T>
 [[nodiscard]] constexpr T reverse_bits(T x) noexcept
 {
     constexpr int N = detail::digits_v<T>;
@@ -450,7 +451,7 @@ template <unsigned_integral T>
 
         // If byteswap does what we want, we can skip a few iterations of the subsequent loop.
         if constexpr (detail::is_pow2_or_zero(byte_bits) && N >= byte_bits) {
-            x = byteswap(x);
+            x = std::byteswap(x);
             start_i = byte_bits;
         }
 
@@ -472,7 +473,7 @@ template <unsigned_integral T>
     }
 }
 
-template <unsigned_integral T>
+template <std::unsigned_integral T>
 [[nodiscard]] constexpr T next_bit_permutation(T x) noexcept
 {
     // https://graphics.stanford.edu/~seander/bithacks.html#NextBitPermutation
@@ -482,10 +483,10 @@ template <unsigned_integral T>
         return 0;
     }
     // Two shifts are better than shifting by + 1. We must not shift by the operand size.
-    return (t + one) | (((~t & -~t) - one) >> countr_zero(x) >> one);
+    return (t + one) | (((~t & -~t) - one) >> std::countr_zero(x) >> one);
 }
 
-template <unsigned_integral T>
+template <std::unsigned_integral T>
 [[nodiscard]] constexpr T prev_bit_permutation(T x) noexcept
 {
     constexpr T one = 1;
@@ -494,12 +495,12 @@ template <unsigned_integral T>
         return 0;
     }
     const T trailing_ones = x ^ trailing_ones_cleared;
-    const int shift = countr_zero(trailing_ones_cleared) - countr_one(trailing_ones) - 1;
+    const int shift = std::countr_zero(trailing_ones_cleared) - std::countr_one(trailing_ones) - 1;
 
     return static_cast<T>(trailing_ones_cleared - one) >> shift << shift;
 }
 
-template <unsigned_integral T>
+template <detail::permissive_unsigned_integral T>
 [[nodiscard]] constexpr T compress_bitsr(T x, T m) noexcept
 {
     constexpr int N = detail::digits_v<T>;
@@ -551,7 +552,7 @@ template <unsigned_integral T>
         for (int mask_bits = 0; mask_bits < N; mask_bits += N_native) {
             const auto compressed = compress_bitsr(static_cast<size_t>(x), static_cast<size_t>(m));
             result |= static_cast<T>(compressed) << offset;
-            offset += popcount(static_cast<size_t>(m));
+            offset += detail::popcount(static_cast<size_t>(m));
             x >>= N_native;
             m >>= N_native;
         }
@@ -577,7 +578,7 @@ template <unsigned_integral T>
     }
 }
 
-template <unsigned_integral T>
+template <detail::permissive_unsigned_integral T>
 [[nodiscard]] constexpr T expand_bitsr(T x, T m) noexcept
 {
     constexpr int N = detail::digits_v<T>;
@@ -628,7 +629,7 @@ template <unsigned_integral T>
         for (int mask_bits = 0; mask_bits < N; mask_bits += N_native) {
             const auto expanded = expand_bitsr(static_cast<size_t>(x), static_cast<size_t>(m));
             result |= static_cast<T>(expanded) << mask_bits;
-            x >>= popcount(static_cast<size_t>(m));
+            x >>= detail::popcount(static_cast<size_t>(m));
             m >>= N_native;
         }
 
@@ -658,7 +659,7 @@ template <unsigned_integral T>
     }
 }
 
-template <unsigned_integral T>
+template <detail::permissive_unsigned_integral T>
 [[nodiscard]] constexpr T compress_bitsl(T x, T m) noexcept
 {
     constexpr int N = detail::digits_v<T>;
@@ -669,12 +670,12 @@ template <unsigned_integral T>
     if (m == 0) { // Prevents shift which is >= the operand size.
         return 0;
     }
-    int shift = N - popcount(m);
+    int shift = N - detail::popcount(m);
     return static_cast<T>(compress_bitsr(x, m) << shift);
 #endif
 }
 
-template <unsigned_integral T>
+template <detail::permissive_unsigned_integral T>
 [[nodiscard]] constexpr T expand_bitsl(T x, T m) noexcept
 {
     constexpr int N = detail::digits_v<T>;
@@ -685,11 +686,11 @@ template <unsigned_integral T>
     if (m == 0) {
         return 0;
     }
-    const int shift = N - popcount(m);
+    const int shift = N - detail::popcount(m);
     return expand_bitsr(static_cast<T>(x >> shift), m);
 #endif
 }
 
-} // namespace std::experimental
+} // namespace cxx26bp
 
 #endif

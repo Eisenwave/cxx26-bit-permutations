@@ -221,6 +221,8 @@ constexpr void (*tests[])() = {
     test_log2_ceil,
     test_alternate01,
 
+#define FUZZ_1(T, f) naive_fuzz_1<T, f, f##_naive>
+
 #ifndef __INTELLISENSE__
     test_bipp<bitwise_inclusive_right_parity>,
     test_bipp<bitwise_inclusive_right_parity_naive>,
@@ -243,15 +245,29 @@ constexpr void (*tests[])() = {
     text_prev_bit_permutation<prev_bit_permutation>,
     text_prev_bit_permutation<prev_bit_permutation_naive>,
     
-    naive_fuzz_1<std::uint8_t,  reverse_bits, reverse_bits_naive>,
-    naive_fuzz_1<std::uint16_t, reverse_bits, reverse_bits_naive>,
-    naive_fuzz_1<std::uint32_t, reverse_bits, reverse_bits_naive>,
-    naive_fuzz_1<std::uint64_t, reverse_bits, reverse_bits_naive>,
+    FUZZ_1(std::uint8_t,  reverse_bits),
+    FUZZ_1(std::uint16_t, reverse_bits),
+    FUZZ_1(std::uint32_t, reverse_bits),
+    FUZZ_1(std::uint64_t, reverse_bits),
+    //IF_U128(FUZZ_1(u128, reverse_bits),)
 
-    naive_fuzz_1<std::uint8_t,  bitwise_inclusive_right_parity, bitwise_inclusive_right_parity_naive>,
-    naive_fuzz_1<std::uint16_t, bitwise_inclusive_right_parity, bitwise_inclusive_right_parity_naive>,
-    naive_fuzz_1<std::uint32_t, bitwise_inclusive_right_parity, bitwise_inclusive_right_parity_naive>,
-    naive_fuzz_1<std::uint64_t, bitwise_inclusive_right_parity, bitwise_inclusive_right_parity_naive>,
+    FUZZ_1(std::uint8_t,  bitwise_inclusive_right_parity),
+    FUZZ_1(std::uint16_t, bitwise_inclusive_right_parity),
+    FUZZ_1(std::uint32_t, bitwise_inclusive_right_parity),
+    FUZZ_1(std::uint64_t, bitwise_inclusive_right_parity),
+    //IF_U128(FUZZ_1(u128, bitwise_inclusive_right_parity),)
+
+    FUZZ_1(std::uint8_t,  next_bit_permutation),
+    FUZZ_1(std::uint16_t, next_bit_permutation),
+    FUZZ_1(std::uint32_t, next_bit_permutation),
+    FUZZ_1(std::uint64_t, next_bit_permutation),
+    //IF_U128(FUZZ_1(u128, next_bit_permutation),)
+
+    FUZZ_1(std::uint8_t,  prev_bit_permutation),
+    FUZZ_1(std::uint16_t, prev_bit_permutation),
+    FUZZ_1(std::uint32_t, prev_bit_permutation),
+    FUZZ_1(std::uint64_t, prev_bit_permutation),
+    //IF_U128(FUZZ_1(u128, prev_bit_permutation),)
 
     naive_fuzz_2<std::uint8_t,  compress_bitsr, compress_bitsr_naive>,
     naive_fuzz_2<std::uint16_t, compress_bitsr, compress_bitsr_naive>,
@@ -272,16 +288,6 @@ constexpr void (*tests[])() = {
     naive_fuzz_2<std::uint16_t, expand_bitsl, expand_bitsl_naive>,
     naive_fuzz_2<std::uint32_t, expand_bitsl, expand_bitsl_naive>,
     naive_fuzz_2<std::uint64_t, expand_bitsl, expand_bitsl_naive>,
-
-    naive_fuzz_1<std::uint8_t,  next_bit_permutation, next_bit_permutation_naive>,
-    naive_fuzz_1<std::uint16_t, next_bit_permutation, next_bit_permutation_naive>,
-    naive_fuzz_1<std::uint32_t, next_bit_permutation, next_bit_permutation_naive>,
-    naive_fuzz_1<std::uint64_t, next_bit_permutation, next_bit_permutation_naive>,
-
-    naive_fuzz_1<std::uint8_t,  prev_bit_permutation, prev_bit_permutation_naive>,
-    naive_fuzz_1<std::uint16_t, prev_bit_permutation, prev_bit_permutation_naive>,
-    naive_fuzz_1<std::uint32_t, prev_bit_permutation, prev_bit_permutation_naive>,
-    naive_fuzz_1<std::uint64_t, prev_bit_permutation, prev_bit_permutation_naive>,
 #endif
 };
 // clang-format on

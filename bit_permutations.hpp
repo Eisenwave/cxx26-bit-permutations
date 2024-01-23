@@ -136,7 +136,7 @@ inline constexpr int digits_v<_BitInt(N)> = N - 1;
 template <int N>
 inline constexpr int digits_v<unsigned _BitInt(N)> = N;
 
-static_assert(digits_v<_BitInt(128)> == 128);
+static_assert(digits_v<_BitInt(128)> == 127);
 static_assert(digits_v<unsigned _BitInt(128)> == 128);
 #endif
 

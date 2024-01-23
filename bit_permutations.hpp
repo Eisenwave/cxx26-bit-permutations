@@ -753,7 +753,7 @@ template <detail::permissive_unsigned_integral T>
 [[nodiscard]] constexpr T expand_bitsr(T x, T m) noexcept
 {
     constexpr int N = detail::digits_v<T>;
-    constexpr int log_N = detail::log2_floor(N);
+    constexpr int log_N = detail::log2_floor(std::bit_ceil<unsigned>(N));
 
 #ifdef CXX26_BIT_PERMUTATIONS_X86_PDEP
 #ifdef CXX26_BIT_PERMUTATIONS_ENABLE_DEBUG_PP

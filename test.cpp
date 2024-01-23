@@ -309,6 +309,7 @@ void naive_fuzz_2()
 #endif
 
 #define FUZZ_1(T, f) naive_fuzz_1<T, f<T>, f##_naive<T>>
+#define FUZZ_2(T, f) naive_fuzz_2<T, f<T>, f##_naive<T>>
 #define FUZZ_INT(T, f) naive_fuzz_int<T, f<T>, f##_naive<T>>
 
 // clang-format off
@@ -487,29 +488,65 @@ constexpr void (*tests[])() = {
     IF_BITINT(FUZZ_1(unsigned _BitInt(200), prev_bit_permutation),)
     IF_BITINT(FUZZ_1(unsigned _BitInt(256), prev_bit_permutation),)
 
-    naive_fuzz_2<std::uint8_t,  compress_bitsr, compress_bitsr_naive>,
-    naive_fuzz_2<std::uint16_t, compress_bitsr, compress_bitsr_naive>,
-    naive_fuzz_2<std::uint32_t, compress_bitsr, compress_bitsr_naive>,
-    naive_fuzz_2<std::uint64_t, compress_bitsr, compress_bitsr_naive>,
-    IF_U128(naive_fuzz_2<detail::uint128_t, compress_bitsr, compress_bitsr_naive>),
+    FUZZ_2(std::uint8_t,  compress_bitsr),
+    FUZZ_2(std::uint16_t, compress_bitsr),
+    FUZZ_2(std::uint32_t, compress_bitsr),
+    FUZZ_2(std::uint64_t, compress_bitsr),
+    IF_U128(FUZZ_2(detail::uint128_t, compress_bitsr)),
+    IF_BITINT(FUZZ_2(unsigned _BitInt(2), compress_bitsr),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(3), compress_bitsr),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(4), compress_bitsr),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(5), compress_bitsr),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(6), compress_bitsr),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(7), compress_bitsr),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(8), compress_bitsr),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(200), compress_bitsr),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(256), compress_bitsr),)
 
-    naive_fuzz_2<std::uint8_t,  compress_bitsl, compress_bitsl_naive>,
-    naive_fuzz_2<std::uint16_t, compress_bitsl, compress_bitsl_naive>,
-    naive_fuzz_2<std::uint32_t, compress_bitsl, compress_bitsl_naive>,
-    naive_fuzz_2<std::uint64_t, compress_bitsl, compress_bitsl_naive>,
-    IF_U128(naive_fuzz_2<detail::uint128_t, compress_bitsl, compress_bitsl_naive>),
+    FUZZ_2(std::uint8_t,  compress_bitsl),
+    FUZZ_2(std::uint16_t, compress_bitsl),
+    FUZZ_2(std::uint32_t, compress_bitsl),
+    FUZZ_2(std::uint64_t, compress_bitsl),
+    IF_U128(FUZZ_2(detail::uint128_t, compress_bitsl)),
+    IF_BITINT(FUZZ_2(unsigned _BitInt(2), compress_bitsl),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(3), compress_bitsl),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(4), compress_bitsl),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(5), compress_bitsl),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(6), compress_bitsl),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(7), compress_bitsl),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(8), compress_bitsl),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(200), compress_bitsl),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(256), compress_bitsl),)
 
-    naive_fuzz_2<std::uint8_t,  expand_bitsr, expand_bitsr_naive>,
-    naive_fuzz_2<std::uint16_t, expand_bitsr, expand_bitsr_naive>,
-    naive_fuzz_2<std::uint32_t, expand_bitsr, expand_bitsr_naive>,
-    naive_fuzz_2<std::uint64_t, expand_bitsr, expand_bitsr_naive>,
-    IF_U128(naive_fuzz_2<detail::uint128_t, expand_bitsr, expand_bitsr_naive>),
+    FUZZ_2(std::uint8_t,  expand_bitsr),
+    FUZZ_2(std::uint16_t, expand_bitsr),
+    FUZZ_2(std::uint32_t, expand_bitsr),
+    FUZZ_2(std::uint64_t, expand_bitsr),
+    IF_U128(FUZZ_2(detail::uint128_t, expand_bitsr)),
+    IF_BITINT(FUZZ_2(unsigned _BitInt(2), expand_bitsr),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(3), expand_bitsr),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(4), expand_bitsr),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(5), expand_bitsr),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(6), expand_bitsr),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(7), expand_bitsr),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(8), expand_bitsr),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(200), expand_bitsr),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(256), expand_bitsr),)
 
-    naive_fuzz_2<std::uint8_t,  expand_bitsl, expand_bitsl_naive>,
-    naive_fuzz_2<std::uint16_t, expand_bitsl, expand_bitsl_naive>,
-    naive_fuzz_2<std::uint32_t, expand_bitsl, expand_bitsl_naive>,
-    naive_fuzz_2<std::uint64_t, expand_bitsl, expand_bitsl_naive>,
-    IF_U128(naive_fuzz_2<detail::uint128_t, expand_bitsl, expand_bitsl_naive>),
+    FUZZ_2(std::uint8_t,  expand_bitsl),
+    FUZZ_2(std::uint16_t, expand_bitsl),
+    FUZZ_2(std::uint32_t, expand_bitsl),
+    FUZZ_2(std::uint64_t, expand_bitsl),
+    IF_U128(FUZZ_2(detail::uint128_t, expand_bitsl)),
+    IF_BITINT(FUZZ_2(unsigned _BitInt(2), expand_bitsl),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(3), expand_bitsl),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(4), expand_bitsl),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(5), expand_bitsl),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(6), expand_bitsl),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(7), expand_bitsl),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(8), expand_bitsl),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(200), expand_bitsl),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(256), expand_bitsl),)
 #endif
 };
 // clang-format on

@@ -131,7 +131,7 @@ static_assert(is_bit_uint<unsigned _BitInt(2)>::value);
 static_assert(is_bit_uint<unsigned _BitInt(8)>::value);
 
 template <int N>
-inline constexpr int digits_v<_BitInt(N)> = N;
+inline constexpr int digits_v<_BitInt(N)> = N - 1;
 
 template <int N>
 inline constexpr int digits_v<unsigned _BitInt(N)> = N;

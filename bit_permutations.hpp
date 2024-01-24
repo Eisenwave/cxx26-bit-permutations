@@ -309,8 +309,8 @@ template <permissive_unsigned_integral T>
             + countr_zero(static_cast<std::size_t>(static_cast<std::size_t>(x) | sentinel));
     }
     // https://graphics.stanford.edu/~seander/bithacks.html#ZerosOnRightParallel
-    if constexpr (is_pow2_or_zero(N)) {
-        int result = N;
+    else {
+        int result = std::bit_ceil<unsigned>(N);
         x &= -x; // isolate the lowest 1-bit
         result -= (x != 0);
         CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
@@ -318,19 +318,13 @@ template <permissive_unsigned_integral T>
             const T mask = static_cast<T>(~alternate01<T>(i));
             result -= ((x & mask) != 0) * i;
         }
-        return result;
+        if constexpr (is_pow2_or_zero(N)) {
+            return result;
+        }
+        else {
+            return result < N ? result : N;
+        }
     }
-#ifdef CXX26_BIT_PERMUTATIONS_BITINT
-    else {
-        constexpr int M = std::bit_ceil<unsigned>(N);
-        constexpr auto sentinel = (static_cast<unsigned _BitInt(M)>(1) << (N - 1) << 1);
-        return countr_zero(x | sentinel);
-    }
-#else
-    else {
-        return countr_zero_naive(x);
-    }
-#endif
 }
 
 template <permissive_unsigned_integral T>

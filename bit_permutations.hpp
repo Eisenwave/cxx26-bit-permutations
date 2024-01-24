@@ -30,6 +30,9 @@
 
 // DETECT INSTRUCTION SET FEATURES
 
+#ifdef __BMI__
+#define CXX26_BIT_PERMUTATIONS_X86_BMI
+#endif
 #ifdef __BMI2__
 #define CXX26_BIT_PERMUTATIONS_X86_BMI2
 #endif
@@ -112,6 +115,12 @@
 #include <cstdint>
 #include <limits>
 
+#ifdef CXX26_BIT_PERMUTATIONS_GNU
+#define CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL _Pragma("GCC unroll 16")
+#else
+#define CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
+#endif
+
 namespace cxx26bp {
 
 namespace detail {
@@ -179,6 +188,7 @@ template <permissive_unsigned_integral T>
 
     T result = ((one << group_size) - one) << group_size;
 
+    CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
     for (int i = group_size << 1; i < N; i <<= 1) {
         result |= result << i;
     }
@@ -250,14 +260,60 @@ template <permissive_unsigned_integral T>
             return __builtin_ctzll(x | sentinel);
         }
     }
+#elif defined(CXX26_BIT_PERMUTATIONS_X86_BMI)
+    if !consteval {
+        if constexpr (N <= 16) {
+            constexpr auto sentinel = static_cast<unsigned short>(1u << (N - 1) << 1);
+            return _tzcnt_u16(x | sentinel);
+        }
+        else if constexpr (N <= 32) {
+            constexpr auto sentinel = 1u << (N - 1) << 1;
+            return _tzcnt_u32(x | sentinel);
+        }
+        else if constexpr (N <= 64) {
+            constexpr auto sentinel = 1ull << (N - 1) << 1;
+            return _tzcnt_u64(x | sentinel);
+        }
+    }
+#elif defined(CXX26_BIT_PERMUTATIONS_X86)
+    if !consteval {
+        if constexpr (N <= 32) {
+            constexpr unsigned __int32 sentinel = (1u << (N - 1) << 1);
+            unsigned __int32 index;
+            return _BitScanForward(&index, x | sentinel) ? static_cast<int>(index) : 0;
+        }
+        else if constexpr (N <= 64) {
+            constexpr unsigned __int64 sentinel = (1ull << (N - 1) << 1);
+            unsigned __int32 index;
+            return _BitScanForward64(&index, x | sentinel) ? static_cast<int>(index) : 0;
+        }
+    }
 #endif
-    // TODO: MSVC
-
+    constexpr int N_nat = digits_v<std::size_t>;
+    if constexpr (N > N_nat) {
+        // Handle everything except for the most significant digit
+        int result = 0;
+        CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
+        for (int i = 0; i + N_nat < N; i += N_nat) {
+            const int part = countr_zero(static_cast<std::size_t>(x));
+            result += part;
+            if (part != N_nat) {
+                return result;
+            }
+            x >>= N_nat;
+        }
+        // Handle the most significant digit.
+        constexpr auto sentinel
+            = static_cast<std::size_t>(N % N_nat == 0 ? 0 : std::size_t { 1 } << (N % N_nat));
+        return result
+            + countr_zero(static_cast<std::size_t>(static_cast<std::size_t>(x) | sentinel));
+    }
     // https://graphics.stanford.edu/~seander/bithacks.html#ZerosOnRightParallel
     if constexpr (is_pow2_or_zero(N)) {
         int result = N;
         x &= -x; // isolate the lowest 1-bit
         result -= (x != 0);
+        CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
         for (int i = N; i >>= 1;) {
             const T mask = static_cast<T>(~alternate01<T>(i));
             result -= ((x & mask) != 0) * i;
@@ -315,17 +371,18 @@ template <permissive_unsigned_integral T>
             return static_cast<int>(__lzcnt16(x)) - (16 - N);
         }
         else if constexpr (N <= 32) {
-            return static_cast<int>(__lzcnt(x | sentinel)) - (32 - N);
+            return static_cast<int>(__lzcnt(x)) - (32 - N);
         }
         else if constexpr (N <= 64) {
-            return static_cast<int>(__lzcnt64(x | sentinel)) - (64 - N);
+            return static_cast<int>(__lzcnt64(x)) - (64 - N);
         }
     }
 #endif
     if constexpr (is_pow2_or_zero(N)) {
         auto base_mask = static_cast<T>(-T { 1 });
         int result = 0;
-        for (int i = N; i >>= 1;) {
+        CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
+        for (int i = N >> 1; i != 0; i >>= 1) {
             base_mask <<= i;
             if ((x & (base_mask >> result)) == 0) {
                 result += i;
@@ -404,6 +461,7 @@ template <permissive_unsigned_integral T>
     constexpr int N_native = digits_v<size_t>;
     if constexpr (N > N_native) {
         int sum = 0;
+        CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
         for (int i = 0; i < N; i += N_native) {
             sum += popcount(static_cast<size_t>(x));
             x >>= N_native;
@@ -428,6 +486,7 @@ template <permissive_unsigned_integral T>
         T result = x - ((x >> 1) & mask1);
         result = ((result >> 2) & mask2) + (result & mask2);
 
+        CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
         for (int i = 4; i < N; i <<= 1) {
             const auto mask = static_cast<T>(~alternate01<T>(i));
             result = ((result >> i) + result) & mask;
@@ -604,6 +663,7 @@ template <detail::permissive_unsigned_integral T>
         // implementation. We perform the naive algorithm, but for N_native bits at time, not
         // just one.
         T result = 0;
+        CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
         for (int i = 0; i < N; i += N_native) {
             result <<= N_native;
             result |= reverse_bits(static_cast<size_t>(x));
@@ -625,6 +685,7 @@ template <detail::permissive_unsigned_integral T>
             start_i = byte_bits;
         }
 
+        CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
         for (int i = start_i >> 1; i != 0; i >>= 1) {
             const T hi = detail::alternate01<T>(i);
             x = ((x & hi) >> i) | ((x & ~hi) << i);
@@ -720,6 +781,7 @@ template <detail::permissive_unsigned_integral T>
         // integer.
         T result = 0;
         int offset = 0;
+        CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
         for (int mask_bits = 0; mask_bits < N; mask_bits += N_native) {
             const auto compressed = compress_bitsr(static_cast<size_t>(x), static_cast<size_t>(m));
             result |= static_cast<T>(compressed) << offset;
@@ -734,6 +796,7 @@ template <detail::permissive_unsigned_integral T>
         x &= m;
         T mk = ~m << 1;
 
+        CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
         for (int i = 1; i < N; i <<= 1) {
             const T mk_parity = detail::bitwise_inclusive_right_parity(mk);
 
@@ -797,6 +860,7 @@ template <detail::permissive_unsigned_integral T>
     if constexpr (N > N_native) {
         // Digit-by-digit approach, same as in expand_bitsr.
         T result = 0;
+        CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
         for (int mask_bits = 0; mask_bits < N; mask_bits += N_native) {
             const auto expanded = expand_bitsr(static_cast<size_t>(x), static_cast<size_t>(m));
             result |= static_cast<T>(expanded) << mask_bits;
@@ -810,8 +874,9 @@ template <detail::permissive_unsigned_integral T>
         const T initial_m = m;
 
         T array[log_N];
-        T mk = ~m << 1; // We will count 0's to right.
+        T mk = ~m << 1;
 
+        CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
         for (int i = 0; i < log_N; ++i) {
             const T mk_parity = detail::bitwise_inclusive_right_parity(mk);
             const T move = mk_parity & m;
@@ -820,7 +885,10 @@ template <detail::permissive_unsigned_integral T>
             mk &= ~mk_parity;
         }
 
-        for (int i = log_N; i-- > 0;) {
+        CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
+        for (int i = log_N; i > 0;) {
+            --i; // Normally, I would write (i-- > 0), but this triggers
+                 // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=113581
             const T move = array[i];
             const T t = x << (1 << i);
             x = (x & ~move) | (t & move);

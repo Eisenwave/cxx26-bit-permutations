@@ -542,10 +542,8 @@ template <int N, permissive_unsigned_integral T>
             }
         }
     }
-#else
-    if constexpr (false) { }
 #endif
-    else if constexpr (constexpr int N_native = digits_v<std::size_t>; N > N_native) {
+    if constexpr (constexpr int N_native = digits_v<std::size_t>; N > N_native) {
         // N, rounded up to the next multiple of N_native.
         constexpr int N_ceil = N_native * (N / N_native + (N % N_native != 0));
         static_assert(N_ceil >= N);

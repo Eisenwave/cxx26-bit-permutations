@@ -368,6 +368,40 @@ template <permissive_unsigned_integral T>
     return log2_floor(x) + !is_pow2_or_zero(x);
 }
 
+template <permissive_unsigned_integral T>
+[[nodiscard]] auto optional_byteswap(T x) noexcept
+{
+    [[maybe_unused]] constexpr int N = digits_v<T>;
+
+#ifdef CXX26_BIT_PERMUTATIONS_GNU
+    if constexpr (N == 8) {
+        return x;
+    }
+    else if constexpr (N == 16) {
+        return static_cast<T>(__builtin_bswap16(x));
+    }
+    else if constexpr (N == 32) {
+        return static_cast<T>(__builtin_bswap32(x));
+    }
+    else if constexpr (N == 64) {
+        return static_cast<T>(__builtin_bswap64(64));
+    }
+#elif defined(CXX26_BIT_PERMUTATIONS_MSVC)
+    if constexpr (N == digits_v<unsigned char>) {
+        return x;
+    }
+    else if constexpr (N == digits_v<unsigned short>) {
+        return static_cast<T>(_byteswap_ushort(x));
+    }
+    else if constexpr (N == digits_v<unsigned long>) {
+        return static_cast<T>(_byteswap_ulong(x));
+    }
+    else if constexpr (N == 64) {
+        return static_cast<T>(_byteswap_uint64(x));
+    }
+#endif
+}
+
 // `std::popcount` does not accept _BitInt or other extensions, so we make our own.
 template <permissive_unsigned_integral T>
 [[nodiscard]] constexpr int popcount(T x) noexcept
@@ -535,11 +569,14 @@ template <int N, permissive_unsigned_integral T>
         int start_i = N;
 
         // If byteswap does what we want, we can skip a few iterations of the subsequent loop.
-        if constexpr (detail::is_pow2_or_zero(byte_bits) && N >= byte_bits
-                      && std::unsigned_integral<T>) {
-            // TODO: implement detail::byteswap so that we can keep using this for _BitInt et al.
-            x = std::byteswap(x) >> (N_actual - N);
-            start_i = byte_bits;
+        if constexpr (N >= byte_bits) {
+            // Nested constexpr if avoids unnecessary instantiation of optional_byteswap.
+            if constexpr (!std::is_same_v<decltype(optional_byteswap(x)), void>) {
+                if !consteval {
+                    x = optional_byteswap(x) >> (N_actual - N);
+                    start_i = byte_bits;
+                }
+            }
         }
 
         CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL

@@ -466,18 +466,12 @@ template <permissive_unsigned_integral T>
     return x;
 }
 
-} // namespace detail
-
-template <detail::permissive_unsigned_integral T>
-[[nodiscard]] constexpr T reverse_bits(T x) noexcept
+template <int N, permissive_unsigned_integral T>
+[[nodiscard]] constexpr T reverse_bits_impl(T x) noexcept
 {
-    constexpr int N = detail::digits_v<T>;
+    constexpr int N_actual = digits_v<T>;
+    static_assert(N <= N_actual);
 
-// TODO: for integers >= 256-bit, it may be better to recursively split them into two halves until
-//       the 64-bit version is available, and reassemble.
-//       This is O(n) though and might be worse, if 256-bit shifts are available.
-//       The current strategy for >= 256-bit is to rely on std::byteswap to do most of the job, and
-//       then finish it with three more shifts.
 #ifdef CXX26_BIT_PERMUTATIONS_CLANG
 #ifdef CXX26_BIT_PERMUTATIONS_ENABLE_DEBUG_PP
 #warning Delegating reverse_bits  =>  __builtin_bitreverse (clang)
@@ -485,89 +479,105 @@ template <detail::permissive_unsigned_integral T>
     if constexpr (N <= 8) {
         return static_cast<T>(__builtin_bitreverse8(x) >> (8 - N));
     }
-    else if constexpr (N == 16) {
-        return __builtin_bitreverse16(x);
+    else if constexpr (N <= 16) {
+        return static_cast<T>(__builtin_bitreverse16(x) >> (16 - N));
     }
-    else if constexpr (N == 32) {
-        return __builtin_bitreverse32(x);
+    else if constexpr (N <= 32) {
+        return static_cast<T>(__builtin_bitreverse32(x) >> (32 - N));
     }
-    else if constexpr (N == 64) {
-        return __builtin_bitreverse64(x);
+    else if constexpr (N <= 64) {
+        return static_cast<T>(__builtin_bitreverse64(x) >> (64 - N));
     }
 #elif defined(CXX26_BIT_PERMUTATIONS_ARM_RBIT)
 #ifdef CXX26_BIT_PERMUTATIONS_ENABLE_DEBUG_PP
 #warning Delegating reverse_bits  =>  __rbit
 #endif
-    if !consteval {
-        constexpr int N_uint = detail::digits_v<unsigned>;
-        if constexpr (N <= N_uint) {
-            return static_cast<T>(__rbit(static_cast<unsigned>(x)) >> (N_uint - N));
-        }
-        else if constexpr (N == detail::digits_v<unsigned long>) {
-            return static_cast<T>(__rbitl(x));
-        }
-        else if constexpr (N == detail::digits_v<unsigned long long>) {
-            return static_cast<T>(__rbitll(x));
+    constexpr int N_ull = digits_v<unsigned long long>;
+    if constexpr (N <= N_ull) {
+        constexpr int N_u = digits_v<unsigned>;
+        constexpr int N_ul = digits_v<unsigned long>;
+        if !consteval {
+            if constexpr (N <= N_u) {
+                return static_cast<T>(__rbit(x) >> (N_u - N));
+            }
+            else if constexpr (N <= N_ul) {
+                return static_cast<T>(__rbitl(x) >> (N_ul - N));
+            }
+            else if constexpr (N <= N_ull) {
+                return static_cast<T>(__rbitll(x) >> (N_ull - N));
+            }
         }
     }
+#else
+    if constexpr (false) { }
 #endif
-    constexpr int N_native = detail::digits_v<size_t>;
-    if constexpr (N > N_native && N % N_native == 0) {
-        // For multiples of the native size, we assume that there is a fast native
-        // implementation. We perform the naive algorithm, but for N_native bits at time, not
-        // just one.
-        T result = 0;
+    else if constexpr (constexpr int N_native = digits_v<std::size_t>; N > N_native) {
+        // N, rounded up to the next multiple of N_native.
+        constexpr int N_ceil = N_native * (N / N_native + (N % N_native != 0));
+        static_assert(N_ceil >= N);
+        constexpr int shift = N_ceil - N;
+
+        T most = 0;
         CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
-        for (int i = 0; i < N; i += N_native) {
-            result <<= N_native;
-            result |= reverse_bits(static_cast<size_t>(x));
+        for (int i = 0; i + N_native < N; i += N_native) {
+            most <<= N_native;
+            most |= reverse_bits_impl<N_native>(static_cast<std::size_t>(x));
             x >>= N_native;
         }
-        return result;
+        const T last = reverse_bits_impl<N_native>(static_cast<std::size_t>(x));
+
+        return (most << (N_native - shift)) | (last >> shift);
     }
-    else if constexpr (detail::is_pow2_or_zero(N)) {
+    else if constexpr (is_pow2_or_zero(N)) {
         // Byte-swap and parallel swap technique for conventional architectures.
         // O(log N)
-        constexpr int byte_bits = detail::digits_v<unsigned char>;
+        constexpr int byte_bits = digits_v<unsigned char>;
         int start_i = N;
 
         // If byteswap does what we want, we can skip a few iterations of the subsequent loop.
         if constexpr (detail::is_pow2_or_zero(byte_bits) && N >= byte_bits
                       && std::unsigned_integral<T>) {
-            // TODO: implement detail::byteswap so that we can keep using this
-            x = std::byteswap(x);
+            // TODO: implement detail::byteswap so that we can keep using this for _BitInt et al.
+            x = std::byteswap(x) >> (N_actual - N);
             start_i = byte_bits;
         }
 
         CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
         for (int i = start_i >> 1; i != 0; i >>= 1) {
-            const T hi = detail::alternate01<T>(i);
+            const T hi = alternate01<T>(i);
             x = ((x & hi) >> i) | ((x & ~hi) << i);
         }
 
         return x;
     }
-
-#ifdef CXX26_BIT_PERMUTATIONS_CLANG
     else {
-        constexpr int M = std::bit_ceil<unsigned>(N);
-        static_assert(M != N);
-        return reverse_bits(static_cast<unsigned _BitInt(M)>(x)) >> (M - N);
-    }
-#else
-    else {
-        // TODO: don't use naive algorithm as fallback
-        constexpr int N = digits_v<T>;
+        //         [hi] [lo]
+        // input:  -654 3210
+        // rev:    456- 0123
+        // return: -0123 456
 
-        T result = 0;
-        for (int i = 0; i < N; ++i) {
-            result <<= 1;
-            result |= x & 1;
-            x >>= 1;
-        }
+        constexpr int M = std::bit_floor<unsigned>(N);
+        constexpr int shift = (M * 2) - N;
+        static_assert(M < N);
+        static_assert(M > shift);
+        constexpr T lo_mask = (T { 1 } << M) - 1;
+
+        const T lo = reverse_bits_impl<M>(x & lo_mask);
+        const T hi = reverse_bits_impl<M>(x >> M);
+
+        const T result = (lo << (M - shift)) | (hi >> shift);
+
         return result;
     }
-#endif
+}
+
+} // namespace detail
+
+template <detail::permissive_unsigned_integral T>
+[[nodiscard]] constexpr T reverse_bits(T x) noexcept
+{
+    constexpr int N = detail::digits_v<T>;
+    return detail::reverse_bits_impl<N>(x);
 }
 
 template <detail::permissive_unsigned_integral T>

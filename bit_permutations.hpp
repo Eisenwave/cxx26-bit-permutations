@@ -6,13 +6,19 @@
 // DETECT COMPILER
 
 #ifdef __GNUC__
-#define CXX26_BIT_PERMUTATIONS_GNU
+#define CXX26_BIT_PERMUTATIONS_GNU __GNUC__
+#if CXX26_BIT_PERMUTATIONS_GNU >= 14
+// GCC 14 in particular is quite important because it brings generic __builtins
+#define CXX26_BIT_PERMUTATIONS_GNU_14
 #endif
+#endif
+
 #ifdef __clang__
-#define CXX26_BIT_PERMUTATIONS_CLANG
+#define CXX26_BIT_PERMUTATIONS_CLANG __clang__
 #endif
+
 #ifdef _MSC_VER
-#define CXX26_BIT_PERMUTATIONS_MSVC
+#define CXX26_BIT_PERMUTATIONS_MSVC _MSC_VER
 #endif
 
 // DETECT ARCHITECTURE
@@ -201,6 +207,9 @@ template <permissive_unsigned_integral T>
 {
     constexpr int N = digits_v<T>;
 
+#ifdef CXX26_BIT_PERMUTATIONS_GNU_14
+    return __builtin_ctzg(x, N);
+#else
 #ifdef CXX26_BIT_PERMUTATIONS_GNU
     constexpr int N_ull = digits_v<unsigned long long>;
     if constexpr (N <= N_ull) {
@@ -285,6 +294,7 @@ template <permissive_unsigned_integral T>
             return result < N ? result : N;
         }
     }
+#endif // CXX26_BIT_PERMUTATIONS_GNU_14
 }
 
 template <permissive_unsigned_integral T>
@@ -298,14 +308,19 @@ template <permissive_unsigned_integral T>
 {
     constexpr int N = digits_v<T>;
 
-    if (x == 0) {
-        return N;
-    }
-
+#ifdef CXX26_BIT_PERMUTATIONS_GNU_14
+#ifdef CXX26_BIT_PERMUTATIONS_ENABLE_DEBUG_PP
+#warning Delegating countl_zero  =>  __builtin_clzg
+#endif
+    return __builtin_clzg(x, N);
+#else
 #ifdef CXX26_BIT_PERMUTATIONS_GNU
 #ifdef CXX26_BIT_PERMUTATIONS_ENABLE_DEBUG_PP
 #warning Delegating countl_zero  =>  __builtin_clz
 #endif
+    if (x == 0) {
+        return N;
+    }
     if constexpr (N <= digits_v<unsigned>) {
         return __builtin_clz(x) - (digits_v<unsigned> - N);
     }
@@ -315,12 +330,14 @@ template <permissive_unsigned_integral T>
     else if constexpr (N <= digits_v<unsigned long long>) {
         return __builtin_clzll(x) - (digits_v<unsigned long long> - N);
     }
-#endif
-#ifdef CXX26_BIT_PERMUTATIONS_MSVC
+#elif defined(CXX26_BIT_PERMUTATIONS_MSVC)
 #ifdef CXX26_BIT_PERMUTATIONS_ENABLE_DEBUG_PP
 #warning Delegating countl_zero  =>  __lzcnt
 #endif
     if !consteval {
+        if (x == 0) {
+            return N;
+        }
         if constexpr (N <= 16) {
             return static_cast<int>(__lzcnt16(x)) - (16 - N);
         }
@@ -331,7 +348,11 @@ template <permissive_unsigned_integral T>
             return static_cast<int>(__lzcnt64(x)) - (64 - N);
         }
     }
-#endif
+#endif // CXX26_BIT_PERMUTATIONS_MSVC
+
+    // TODO: ARM intrinsics
+
+    // TODO: digit-by-digit loop for large sizes
     if (x == 0) {
         return N;
     }
@@ -346,6 +367,7 @@ template <permissive_unsigned_integral T>
         }
     }
     return N - result - 1;
+#endif // CXX26_BIT_PERMUTATIONS_GNU_14
 }
 
 template <permissive_unsigned_integral T>
@@ -406,6 +428,9 @@ template <permissive_unsigned_integral T>
 template <permissive_unsigned_integral T>
 [[nodiscard]] constexpr int popcount(T x) noexcept
 {
+#ifdef CXX26_BIT_PERMUTATIONS_GNU_14
+    return __builtin_popcountg(x);
+#else
     constexpr int N = digits_v<T>;
 
 #ifdef CXX26_BIT_PERMUTATIONS_GNU
@@ -467,6 +492,7 @@ template <permissive_unsigned_integral T>
         }
         return result;
     }
+#endif // CXX26_BIT_PERMUTATIONS_GNU_14
 }
 
 /// Each bit in `x` is converted to the parity a bit and all bits to its right.

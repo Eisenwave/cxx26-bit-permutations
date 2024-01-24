@@ -1,4 +1,5 @@
 #include "bit_permutations.hpp"
+#include "bit_permutations_naive.hpp"
 
 #define CXX26_BIT_PERMUTATIONS_ENABLE_STATIC_TESTS 1
 

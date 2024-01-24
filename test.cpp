@@ -227,7 +227,7 @@ constexpr int seed = 0x12345;
 #ifdef NDEBUG
 constexpr int default_fuzz_count = 1024 * 1024 * 16;
 #else
-constexpr int default_fuzz_count = 1024 * 16;
+constexpr int default_fuzz_count = 1024 * 1024;
 #endif
 #else
 constexpr int default_fuzz_count = FUZZ_COUNT;
@@ -239,6 +239,26 @@ template <typename T>
 constexpr T rand_int(rng_type& rng, distr_type& d)
 {
     constexpr int N = detail::digits_v<T>;
+
+    // Instead of generating completely random integers, we randomly pick special cases in 6/8
+    // instances.
+    switch (d(rng) & 0b111) {
+    case 0:
+        return 0;
+    case 1:
+        return 1;
+    case 2:
+        return static_cast<T>(-1);
+    case 3:
+        return alternate01<T>(1);
+    case 4:
+        return alternate01<T>(N / 2);
+    case 5:
+        return static_cast<T>(~alternate01<T>(1));
+    case 6:
+        return static_cast<T>(~alternate01<T>(N / 2));
+    default:; // not exhaustive
+    }
 
     if constexpr (N <= 64) {
         return static_cast<uint64_t>(d(rng));
@@ -458,35 +478,11 @@ constexpr void (*tests[])() = {
     IF_BITINT(FUZZ_1(unsigned _BitInt(200), bitwise_inclusive_right_parity),)
     IF_BITINT(FUZZ_1(unsigned _BitInt(256), bitwise_inclusive_right_parity),)
 
-    FUZZ_1(std::uint8_t,  next_bit_permutation),
-    FUZZ_1(std::uint16_t, next_bit_permutation),
-    FUZZ_1(std::uint32_t, next_bit_permutation),
-    FUZZ_1(std::uint64_t, next_bit_permutation),
-    IF_U128(FUZZ_1(detail::uint128_t, next_bit_permutation),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(2), next_bit_permutation),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(3), next_bit_permutation),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(4), next_bit_permutation),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(5), next_bit_permutation),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(6), next_bit_permutation),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(7), next_bit_permutation),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(8), next_bit_permutation),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(200), next_bit_permutation),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(256), next_bit_permutation),)
 
+    // TODO: Large fuzz-testing these against a naive implementation is not viable
+    //       because the algorithm has exponential complexity.
+    FUZZ_1(std::uint8_t,  next_bit_permutation),
     FUZZ_1(std::uint8_t,  prev_bit_permutation),
-    FUZZ_1(std::uint16_t, prev_bit_permutation),
-    FUZZ_1(std::uint32_t, prev_bit_permutation),
-    FUZZ_1(std::uint64_t, prev_bit_permutation),
-    IF_U128(FUZZ_1(detail::uint128_t, prev_bit_permutation),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(2), prev_bit_permutation),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(3), prev_bit_permutation),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(4), prev_bit_permutation),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(5), prev_bit_permutation),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(6), prev_bit_permutation),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(7), prev_bit_permutation),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(8), prev_bit_permutation),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(200), prev_bit_permutation),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(256), prev_bit_permutation),)
 
     FUZZ_2(std::uint8_t,  compress_bitsr),
     FUZZ_2(std::uint16_t, compress_bitsr),

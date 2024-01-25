@@ -98,21 +98,6 @@ void test_alternate01()
     ASSERT_S(alternate01<std::uint32_t>(12, 4) == 0x000f'000f);
 }
 
-void test_depr_alternate01()
-{
-    ASSERT_S(depr_alternate01<std::uint8_t>(1) == 0b1010'1010);
-    ASSERT_S(depr_alternate01<std::uint8_t>(2) == 0b1100'1100);
-    ASSERT_S(depr_alternate01<std::uint8_t>(3) == 0b0011'1000);
-    ASSERT_S(depr_alternate01<std::uint8_t>(4) == 0b1111'0000);
-    ASSERT_S(depr_alternate01<std::uint8_t>(8) == 0b0000'0000);
-
-    ASSERT_S(depr_alternate01<std::uint32_t>(1) == 0xaaaa'aaaa);
-    ASSERT_S(depr_alternate01<std::uint32_t>(2) == 0xcccc'cccc);
-    ASSERT_S(depr_alternate01<std::uint32_t>(3) == 0x38e3'8e38);
-    ASSERT_S(depr_alternate01<std::uint32_t>(4) == 0xf0f0'f0f0);
-    ASSERT_S(depr_alternate01<std::uint32_t>(8) == 0xff00'ff00);
-}
-
 template <int (&F)(unsigned)>
 void test_popcount()
 {
@@ -278,13 +263,13 @@ constexpr T rand_int(rng_type& rng, distr_type& d)
     case 2:
         return static_cast<T>(-1);
     case 3:
-        return depr_alternate01<T>(1);
+        return alternate01<T>(1, 1);
     case 4:
-        return depr_alternate01<T>(N / 2);
+        return alternate01<T>(N / 2, N / 2);
     case 5:
-        return static_cast<T>(~depr_alternate01<T>(1));
+        return static_cast<T>(~alternate01<T>(1, 1));
     case 6:
-        return static_cast<T>(~depr_alternate01<T>(N / 2));
+        return static_cast<T>(~alternate01<T>(N / 2, N / 2));
     default:; // not exhaustive
     }
 

@@ -307,35 +307,11 @@ template <permissive_unsigned_integral T>
 
 namespace detail {
 
-/// @brief Creates a number with alternating
-/// groups of 0s and 1s. The least significant bit
-/// is always zero.
-template <permissive_unsigned_integral T>
-[[nodiscard]] [[deprecated]] constexpr T depr_alternate01(int group_size = 1) noexcept
-{
-    constexpr int N = digits_v<T>;
-    constexpr T one = 1;
-
-    if (group_size == 0 || group_size >= N) {
-        return 0;
-    }
-
-    T result = ((one << group_size) - one) << group_size;
-
-    CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
-    for (int i = group_size << 1; i < N; i <<= 1) {
-        result |= result << i;
-    }
-
-    return result;
-}
-
 /// @brief Creates a number with alternating groups of 0s and 1s.
 /// For example, `alternate01<uint8_t>(1, 2) -> 0b01001001
 template <permissive_unsigned_integral T>
-CXX26_BIT_PERMUTATIONS_ALWAYS_INLINE [[nodiscard]] //
-constexpr T
-alternate01(int zero_size, int one_size)
+[[nodiscard]] CXX26_BIT_PERMUTATIONS_ALWAYS_INLINE constexpr T alternate01(int zero_size,
+                                                                           int one_size)
 {
     constexpr int N = digits_v<T>;
     const int pattern_length = zero_size + one_size;
@@ -439,7 +415,7 @@ template <permissive_unsigned_integral T>
         result -= (x != 0);
         CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
         for (int i = M >> 1; i != 0; i >>= 1) {
-            const T mask = static_cast<T>(~depr_alternate01<T>(i));
+            const T mask = alternate01<T>(i, i);
             result -= ((x & mask) != 0) * i;
         }
         if constexpr (N == M) {
@@ -546,7 +522,7 @@ template <permissive_unsigned_integral T>
 /// and the return type deduces to `T`.
 /// Otherwise, return `void`.
 template <permissive_unsigned_integral T>
-[[nodiscard]] auto optional_byteswap(T x) noexcept
+[[nodiscard]] auto optional_byteswap([[maybe_unused]] T x) noexcept
 {
     [[maybe_unused]] constexpr int N = digits_v<T>;
 
@@ -627,8 +603,8 @@ template <permissive_unsigned_integral T>
         return (x >> 2) + ((x >> 1) & 1) + (x & 1);
     }
     else {
-        constexpr auto mask1 = static_cast<T>(~depr_alternate01<T>(1));
-        constexpr auto mask2 = static_cast<T>(~depr_alternate01<T>(2));
+        constexpr auto mask1 = alternate01<T>(1, 1);
+        constexpr auto mask2 = alternate01<T>(2, 2);
 
         // TODO: investigate whether this really works for non-power-of-two integers
         //       I suspected that it does.
@@ -637,7 +613,7 @@ template <permissive_unsigned_integral T>
 
         CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
         for (int i = 4; i < N; i <<= 1) {
-            const auto mask = static_cast<T>(~depr_alternate01<T>(i));
+            const auto mask = alternate01<T>(i, i);
             result = ((result >> i) + result) & mask;
         }
         return result;
@@ -746,8 +722,8 @@ template <int N, permissive_unsigned_integral T>
 
         CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
         for (int i = start_i >> 1; i != 0; i >>= 1) {
-            const T hi = depr_alternate01<T>(i);
-            x = ((x & hi) >> i) | ((x & ~hi) << i);
+            const T lo = alternate01<T>(i, i);
+            x = ((x & ~lo) >> i) | ((x & lo) << i);
         }
 
         return x;

@@ -7,6 +7,7 @@ This project is a reference implementation for
 This project provides a single-header reference implementation of the functions
 
 - `bit_reverse`
+- `bit_repeat`
 - `next_bit_permutation`
 - `prev_bit_permutation`
 - `bit_compressr`

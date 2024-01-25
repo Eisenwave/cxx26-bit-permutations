@@ -1,15 +1,15 @@
 #ifndef CXX26_BIT_PERMUTATIONS_INCLUDE_GUARD
 #define CXX26_BIT_PERMUTATIONS_INCLUDE_GUARD
 
+#include <array>
 #include <bit>
 #include <concepts>
 #include <cstdint>
 #include <limits>
 #include <version>
 
-// FIXME: disable
-#define CXX26_BIT_PERMUTATIONS_DISABLE_BUILTINS
-#define CXX26_BIT_PERMUTATIONS_DISABLE_ARCH_INTRINSICS
+// #define CXX26_BIT_PERMUTATIONS_DISABLE_BUILTINS
+// #define CXX26_BIT_PERMUTATIONS_DISABLE_ARCH_INTRINSICS
 
 // DETECT GNU COMPILERS AND BUILTINS
 // =================================
@@ -250,6 +250,26 @@ namespace cxx26bp {
 
 namespace detail {
 
+/// @brief Returns `true` if x is a power of two or zero.
+[[nodiscard]] constexpr int is_pow2_or_zero(int x) noexcept
+{
+    return (x & (x - 1)) == 0;
+}
+
+/// Computes `floor(log2(max(1, x)))` of an  integer `x`.
+/// If x is zero or negative, returns zero.
+[[nodiscard]] constexpr int log2_floor(int x) noexcept
+{
+    return x < 1 ? 0 : digits_v<unsigned> - std::countl_zero(static_cast<unsigned>(x)) - 1;
+}
+
+/// Computes `ceil(log2(max(1, x)))` of an integer `x`.
+/// If `x` is zero or negative, returns zero.
+[[nodiscard]] constexpr int log2_ceil(int x) noexcept
+{
+    return log2_floor(x) + !is_pow2_or_zero(x);
+}
+
 template <typename T>
 concept bit_unsigned_integral = is_bit_uint<T>::value;
 
@@ -279,7 +299,7 @@ template <permissive_unsigned_integral T>
 
 /// @brief Repeats a bit pattern.
 /// @param x the bit-pattern, stored in the lest significant `length` bits.
-/// @param length the length of the bit-pattern, in range [1, N]
+/// @param length the length of the bit-pattern, in range [1, inf)
 /// @return The bit pattern in `x`, repeated as many times as representable by `T`.
 /// @throws Nothing.
 template <permissive_unsigned_integral T>
@@ -291,9 +311,6 @@ template <permissive_unsigned_integral T>
     if CXX26_BIT_PERMUTATIONS_CONSTANT_EVALUATED {
         if (length <= 0) {
             throw "length must be greater than zero";
-        }
-        if (length > N) {
-            throw "length must be <= N";
         }
     }
 
@@ -337,6 +354,16 @@ template <permissive_unsigned_integral T>
     const T ones = shl(T { 1 }, one_size) - 1;
     return bit_repeat(ones, pattern_length);
 }
+
+template <typename T>
+inline constexpr auto alternating_bit_mask_table = [] {
+    constexpr int log_N = log2_ceil(digits_v<T>) + 1;
+    std::array<T, log_N> result;
+    for (int i = 0; i < log_N; ++i) {
+        result[static_cast<std::size_t>(i)] = i == 0 ? 0 : alternate01<T>(i, i);
+    }
+    return result;
+}();
 
 template <permissive_unsigned_integral T>
 [[nodiscard]] constexpr int countr_zero(T x) noexcept
@@ -421,7 +448,7 @@ template <permissive_unsigned_integral T>
         result -= (x != 0);
         CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
         for (int i = M >> 1; i != 0; i >>= 1) {
-            const T mask = alternate01<T>(i, i);
+            const T mask = alternating_bit_mask_table<T>[i];
             result -= ((x & mask) != 0) * i;
         }
         if constexpr (N == M) {
@@ -502,26 +529,6 @@ template <permissive_unsigned_integral T>
 [[nodiscard]] constexpr int countl_one(T x) noexcept
 {
     return countl_zero(static_cast<T>(~x));
-}
-
-/// @brief Returns `true` if x is a power of two or zero.
-[[nodiscard]] constexpr int is_pow2_or_zero(int x) noexcept
-{
-    return (x & (x - 1)) == 0;
-}
-
-/// Computes `floor(log2(max(1, x)))` of an  integer `x`.
-/// If x is zero or negative, returns zero.
-[[nodiscard]] constexpr int log2_floor(int x) noexcept
-{
-    return x < 1 ? 0 : digits_v<unsigned> - countl_zero(static_cast<unsigned>(x)) - 1;
-}
-
-/// Computes `ceil(log2(max(1, x)))` of an integer `x`.
-/// If `x` is zero or negative, returns zero.
-[[nodiscard]] constexpr int log2_ceil(int x) noexcept
-{
-    return log2_floor(x) + !is_pow2_or_zero(x);
 }
 
 /// @brief If byte-reversal for `T` is supported, returns `x` with its byte order reversed,
@@ -609,17 +616,15 @@ template <permissive_unsigned_integral T>
         return (x >> 2) + ((x >> 1) & 1) + (x & 1);
     }
     else {
-        constexpr auto mask1 = alternate01<T>(1, 1);
-        constexpr auto mask2 = alternate01<T>(2, 2);
+        constexpr auto mask1 = detail::alternating_bit_mask_table<T>[1];
+        constexpr auto mask2 = detail::alternating_bit_mask_table<T>[2];
 
-        // TODO: investigate whether this really works for non-power-of-two integers
-        //       I suspected that it does.
         T result = x - ((x >> 1) & mask1);
         result = ((result >> 2) & mask2) + (result & mask2);
 
         CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
         for (int i = 4; i < N; i <<= 1) {
-            const auto mask = alternate01<T>(i, i);
+            const auto mask = detail::alternating_bit_mask_table<T>[i];
             result = ((result >> i) + result) & mask;
         }
         return result;
@@ -728,7 +733,7 @@ template <int N, permissive_unsigned_integral T>
 
         CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
         for (int i = start_i >> 1; i != 0; i >>= 1) {
-            const T lo = alternate01<T>(i, i);
+            const T lo = alternating_bit_mask_table<T>[i];
             x = ((x & ~lo) >> i) | ((x & lo) << i);
         }
 

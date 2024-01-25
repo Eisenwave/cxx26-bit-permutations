@@ -974,42 +974,6 @@ template <detail::permissive_unsigned_integral T>
 #endif
 }
 
-/*
-template <detail::permissive_unsigned_integral T>
-[[nodiscard]] constexpr T zipr_zero(T x, int zb, int xb) noexcept
-{
-    constexpr int N = detail::digits_v<T>;
-
-    if constexpr (BITS == 0) {
-        return input;
-    }
-    else {
-        constexpr std::uint64_t MASKS[] = {
-            detail::alternate01<T>(zb * 1, xb * 1), //
-            detail::alternate01<T>(zb * 2, xb * 2),
-            // ...
-        };
-        // log2_floor(0) == 0 so this is always safe, even for 1 bit
-        constexpr int start = 4 - detail::log2floor(zb >> 1);
-
-        std::uint64_t n = input;
-        for (int i = start; i != -1; --i) {
-            unsigned shift = zb * (1u << i);
-            n |= n << shift;
-            n &= MASKS[i];
-        }
-
-        return n;
-    }
-}
-
-template <detail::permissive_unsigned_integral T>
-[[nodiscard]] constexpr T zipr_zero(T x, int b) noexcept
-{
-    return zipr_zero(x, b, b);
-}
-*/
-
 } // namespace cxx26bp
 
 #endif

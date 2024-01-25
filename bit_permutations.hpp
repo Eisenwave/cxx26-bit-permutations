@@ -283,7 +283,7 @@ template <permissive_unsigned_integral T>
 /// @return The bit pattern in `x`, repeated as many times as representable by `T`.
 /// @throws Nothing.
 template <permissive_unsigned_integral T>
-[[nodiscard]] CXX26_BIT_PERMUTATIONS_ALWAYS_INLINE constexpr T repeat_bits(T x, int length)
+[[nodiscard]] CXX26_BIT_PERMUTATIONS_ALWAYS_INLINE constexpr T bit_repeat(T x, int length)
 {
     constexpr int N = digits_v<T>;
     constexpr T one = 1;
@@ -335,7 +335,7 @@ template <permissive_unsigned_integral T>
     }
 
     const T ones = shl(T { 1 }, one_size) - 1;
-    return repeat_bits(ones, pattern_length);
+    return bit_repeat(ones, pattern_length);
 }
 
 template <permissive_unsigned_integral T>
@@ -656,7 +656,7 @@ template <permissive_unsigned_integral T>
 }
 
 template <int N, permissive_unsigned_integral T>
-[[nodiscard]] constexpr T reverse_bits_impl(T x) noexcept
+[[nodiscard]] constexpr T bit_reverse_impl(T x) noexcept
 {
     constexpr int N_actual = digits_v<T>;
     static_assert(N <= N_actual);
@@ -702,10 +702,10 @@ template <int N, permissive_unsigned_integral T>
         CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
         for (int i = 0; i + N_native < N; i += N_native) {
             most <<= N_native;
-            most |= reverse_bits_impl<N_native>(static_cast<std::size_t>(x));
+            most |= bit_reverse_impl<N_native>(static_cast<std::size_t>(x));
             x >>= N_native;
         }
-        const T last = reverse_bits_impl<N_native>(static_cast<std::size_t>(x));
+        const T last = bit_reverse_impl<N_native>(static_cast<std::size_t>(x));
 
         return (most << (N_native - shift)) | (last >> shift);
     }
@@ -746,8 +746,8 @@ template <int N, permissive_unsigned_integral T>
         static_assert(M > shift);
         constexpr T lo_mask = (T { 1 } << M) - 1;
 
-        const T lo = reverse_bits_impl<M>(x & lo_mask);
-        const T hi = reverse_bits_impl<M>(x >> M);
+        const T lo = bit_reverse_impl<M>(x & lo_mask);
+        const T hi = bit_reverse_impl<M>(x >> M);
 
         const T result = (lo << (M - shift)) | (hi >> shift);
 
@@ -758,10 +758,10 @@ template <int N, permissive_unsigned_integral T>
 } // namespace detail
 
 template <detail::permissive_unsigned_integral T>
-[[nodiscard]] constexpr T reverse_bits(T x) noexcept
+[[nodiscard]] constexpr T bit_reverse(T x) noexcept
 {
     constexpr int N = detail::digits_v<T>;
-    return detail::reverse_bits_impl<N>(x);
+    return detail::bit_reverse_impl<N>(x);
 }
 
 template <detail::permissive_unsigned_integral T>
@@ -793,7 +793,7 @@ template <detail::permissive_unsigned_integral T>
 }
 
 template <detail::permissive_unsigned_integral T>
-[[nodiscard]] constexpr T compress_bitsr(T x, T m) noexcept
+[[nodiscard]] constexpr T bit_compressr(T x, T m) noexcept
 {
     constexpr int N = detail::digits_v<T>;
 
@@ -838,7 +838,7 @@ template <detail::permissive_unsigned_integral T>
         CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
         for (int mask_bits = 0; mask_bits < N; mask_bits += N_native) {
             const auto compressed
-                = compress_bitsr(static_cast<std::size_t>(x), static_cast<std::size_t>(m));
+                = bit_compressr(static_cast<std::size_t>(x), static_cast<std::size_t>(m));
             result |= static_cast<T>(compressed) << offset;
             offset += detail::popcount(static_cast<std::size_t>(m));
             x >>= N_native;
@@ -868,7 +868,7 @@ template <detail::permissive_unsigned_integral T>
 }
 
 template <detail::permissive_unsigned_integral T>
-[[nodiscard]] constexpr T expand_bitsr(T x, T m) noexcept
+[[nodiscard]] constexpr T bit_expandr(T x, T m) noexcept
 {
     constexpr int N = detail::digits_v<T>;
     constexpr int log_N = detail::log2_floor(std::bit_ceil<unsigned>(N));
@@ -907,12 +907,12 @@ template <detail::permissive_unsigned_integral T>
 #endif
     constexpr int N_native = detail::digits_v<std::size_t>;
     if constexpr (N > N_native) {
-        // Digit-by-digit approach, same as in expand_bitsr.
+        // Digit-by-digit approach, same as in bit_expandr.
         T result = 0;
         CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
         for (int mask_bits = 0; mask_bits < N; mask_bits += N_native) {
             const auto expanded
-                = expand_bitsr(static_cast<std::size_t>(x), static_cast<std::size_t>(m));
+                = bit_expandr(static_cast<std::size_t>(x), static_cast<std::size_t>(m));
             result |= static_cast<T>(expanded) << mask_bits;
             x >>= detail::popcount(static_cast<std::size_t>(m));
             m >>= N_native;
@@ -949,34 +949,34 @@ template <detail::permissive_unsigned_integral T>
 }
 
 template <detail::permissive_unsigned_integral T>
-[[nodiscard]] constexpr T compress_bitsl(T x, T m) noexcept
+[[nodiscard]] constexpr T bit_compressl(T x, T m) noexcept
 {
     constexpr int N = detail::digits_v<T>;
 
 #if defined(CXX26_BIT_PERMUTATIONS_FAST_REVERSE) && !defined(CXX26_BIT_PERMUTATIONS_FAST_POPCOUNT)
-    return reverse_bits(compress_bitsr(reverse_bits(x)), reverse_bits(m)));
+    return bit_reverse(bit_compressr(bit_reverse(x)), bit_reverse(m)));
 #else
     if (m == 0) { // Prevents shift which is >= the operand size.
         return 0;
     }
     int shift = N - detail::popcount(m);
-    return static_cast<T>(compress_bitsr(x, m) << shift);
+    return static_cast<T>(bit_compressr(x, m) << shift);
 #endif
 }
 
 template <detail::permissive_unsigned_integral T>
-[[nodiscard]] constexpr T expand_bitsl(T x, T m) noexcept
+[[nodiscard]] constexpr T bit_expandl(T x, T m) noexcept
 {
     constexpr int N = detail::digits_v<T>;
 
 #if defined(CXX26_BIT_PERMUTATIONS_FAST_REVERSE) && !defined(CXX26_BIT_PERMUTATIONS_FAST_POPCOUNT)
-    return reverse_bits(expand_bitsr(reverse_bits(x)), reverse_bits(m)));
+    return bit_reverse(bit_expandr(bit_reverse(x)), bit_reverse(m)));
 #else
     if (m == 0) {
         return 0;
     }
     const int shift = N - detail::popcount(m);
-    return expand_bitsr(static_cast<T>(x >> shift), m);
+    return bit_expandr(static_cast<T>(x >> shift), m);
 #endif
 }
 

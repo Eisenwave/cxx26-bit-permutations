@@ -6,13 +6,13 @@ This project is a reference implementation for
 
 This project provides a single-header reference implementation of the functions
 
-- `reverse_bits`
+- `bit_reverse`
 - `next_bit_permutation`
 - `prev_bit_permutation`
-- `compress_bitr`
-- `expand_bitsr`
-- `compress_bitsl`
-- `expand_bitsl`
+- `bit_compressr`
+- `bit_expandr`
+- `bit_compressl`
+- `bit_expandl`
 
 There are also implementations of existing `<bit>` functions for the purpose of testing.
 The standard library functions don't support `_BitInt` or 128-bit integers, so it was necessary

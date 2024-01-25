@@ -121,10 +121,27 @@
 #include <cstdint>
 #include <limits>
 
+// COMPILER-SPECIFIC ATTRIBUTES AND PRAGMAS
+
 #ifdef CXX26_BIT_PERMUTATIONS_GNU
+#define CXX26_BIT_PERMUTATIONS_ALWAYS_INLINE [[gnu::always_inline]]
 #define CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL _Pragma("GCC unroll 16")
+#elif defined(CXX26_BIT_PERMUTATIONS_MSVC)
+#define CXX26_BIT_PERMUTATIONS_ALWAYS_INLINE __forceinline
 #else
+#define CXX26_BIT_PERMUTATIONS_ALWAYS_INLINE inline
 #define CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
+#endif
+
+// C++ FEATURE DETECTION
+
+#ifdef __cpp_if_consteval
+#define CXX26_BIT_PERMUTATIONS_CONSTANT_EVALUATED consteval
+#define CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED !consteval
+#else
+// all vendors use the same builtin
+#define CXX26_BIT_PERMUTATIONS_CONSTANT_EVALUATED (__builtin_is_constant_evaluated())
+#define CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED (!__builtin_is_constant_evaluated())
 #endif
 
 namespace cxx26bp {
@@ -183,7 +200,7 @@ concept permissive_unsigned_integral
 /// groups of 0s and 1s. The least significant bit
 /// is always zero.
 template <permissive_unsigned_integral T>
-[[nodiscard]] constexpr T alternate01(int group_size = 1) noexcept
+[[nodiscard]] [[deprecated]] constexpr T depr_alternate01(int group_size = 1) noexcept
 {
     constexpr int N = digits_v<T>;
     constexpr T one = 1;
@@ -200,6 +217,46 @@ template <permissive_unsigned_integral T>
     }
 
     return result;
+}
+
+/// @brief Creates a number with alternating groups of 0s and 1s.
+/// For example, `alternate01<uint8_t>(1, 2) -> 0b01001001
+template <permissive_unsigned_integral T>
+CXX26_BIT_PERMUTATIONS_ALWAYS_INLINE [[nodiscard]] //
+constexpr T
+alternate01(int one_size, int zero_size) noexcept
+{
+    constexpr int N = digits_v<T>;
+    constexpr T one = 1;
+    const int combined_size = one_size + zero_size;
+
+    if CXX26_BIT_PERMUTATIONS_CONSTANT_EVALUATED {
+        if (one_size < 0) {
+            throw "one_size must be positive";
+        }
+        if (zero_size < 0) {
+            throw "zero_size must be positive";
+        }
+        if (combined_size == 0) {
+            throw "alternate01(0, 0) is undefined behavior";
+        }
+    }
+
+    T result = (one << one_size) - one;
+
+    CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
+    for (int i = combined_size; i < N; i <<= 1) {
+        result |= result << i;
+    }
+
+    return result;
+}
+
+/// @return `alternate01(group_size, group_size)`
+template <permissive_unsigned_integral T>
+[[nodiscard]] constexpr T alternate01(int group_size = 1) noexcept
+{
+    return alternate01<T>(group_size, group_size);
 }
 
 template <permissive_unsigned_integral T>
@@ -230,7 +287,7 @@ template <permissive_unsigned_integral T>
         }
     }
 #elif defined(CXX26_BIT_PERMUTATIONS_X86_BMI)
-    if !consteval {
+    if CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED {
         if constexpr (N <= 16) {
             constexpr auto sentinel = static_cast<unsigned short>(1u << (N - 1) << 1);
             return _tzcnt_u16(x | sentinel);
@@ -245,7 +302,7 @@ template <permissive_unsigned_integral T>
         }
     }
 #elif defined(CXX26_BIT_PERMUTATIONS_X86)
-    if !consteval {
+    if CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED {
         if constexpr (N <= 32) {
             constexpr unsigned __int32 sentinel = (1u << (N - 1) << 1);
             unsigned __int32 index;
@@ -284,7 +341,7 @@ template <permissive_unsigned_integral T>
         result -= (x != 0);
         CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
         for (int i = N; i >>= 1;) {
-            const T mask = static_cast<T>(~alternate01<T>(i));
+            const T mask = static_cast<T>(~depr_alternate01<T>(i));
             result -= ((x & mask) != 0) * i;
         }
         if constexpr (is_pow2_or_zero(N)) {
@@ -334,7 +391,7 @@ template <permissive_unsigned_integral T>
 #ifdef CXX26_BIT_PERMUTATIONS_ENABLE_DEBUG_PP
 #warning Delegating countl_zero  =>  __lzcnt
 #endif
-    if !consteval {
+    if CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED {
         if (x == 0) {
             return N;
         }
@@ -390,29 +447,26 @@ template <permissive_unsigned_integral T>
     return log2_floor(x) + !is_pow2_or_zero(x);
 }
 
+/// @brief If byte-reversal for `T` is supported, returns `x` with its byte order reversed,
+/// and the return type deduces to `T`.
+/// Otherwise, return `void`.
 template <permissive_unsigned_integral T>
 [[nodiscard]] auto optional_byteswap(T x) noexcept
 {
     [[maybe_unused]] constexpr int N = digits_v<T>;
 
 #ifdef CXX26_BIT_PERMUTATIONS_GNU
-    if constexpr (N == 8) {
-        return x;
-    }
-    else if constexpr (N == 16) {
+    if constexpr (N == 16) {
         return static_cast<T>(__builtin_bswap16(x));
     }
     else if constexpr (N == 32) {
         return static_cast<T>(__builtin_bswap32(x));
     }
     else if constexpr (N == 64) {
-        return static_cast<T>(__builtin_bswap64(64));
+        return static_cast<T>(__builtin_bswap64(x));
     }
 #elif defined(CXX26_BIT_PERMUTATIONS_MSVC)
-    if constexpr (N == digits_v<unsigned char>) {
-        return x;
-    }
-    else if constexpr (N == digits_v<unsigned short>) {
+    if constexpr (N == digits_v<unsigned short>) {
         return static_cast<T>(_byteswap_ushort(x));
     }
     else if constexpr (N == digits_v<unsigned long>) {
@@ -421,6 +475,8 @@ template <permissive_unsigned_integral T>
     else if constexpr (N == 64) {
         return static_cast<T>(_byteswap_uint64(x));
     }
+#else
+    return void();
 #endif
 }
 
@@ -445,7 +501,7 @@ template <permissive_unsigned_integral T>
     }
 #endif
 #ifdef CXX26_BIT_PERMUTATIONS_MSVC
-    if !consteval {
+    if CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED {
         if constexpr (N <= digits_v<unsigned short>) {
             return static_cast<int>(__popcnt16(x));
         }
@@ -477,8 +533,8 @@ template <permissive_unsigned_integral T>
         return (x >> 2) + ((x >> 1) & 1) + (x & 1);
     }
     else {
-        constexpr auto mask1 = static_cast<T>(~alternate01<T>(1));
-        constexpr auto mask2 = static_cast<T>(~alternate01<T>(2));
+        constexpr auto mask1 = static_cast<T>(~depr_alternate01<T>(1));
+        constexpr auto mask2 = static_cast<T>(~depr_alternate01<T>(2));
 
         // TODO: investigate whether this really works for non-power-of-two integers
         //       I suspected that it does.
@@ -487,7 +543,7 @@ template <permissive_unsigned_integral T>
 
         CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
         for (int i = 4; i < N; i <<= 1) {
-            const auto mask = static_cast<T>(~alternate01<T>(i));
+            const auto mask = static_cast<T>(~depr_alternate01<T>(i));
             result = ((result >> i) + result) & mask;
         }
         return result;
@@ -507,7 +563,7 @@ template <permissive_unsigned_integral T>
 #ifdef CXX26_BIT_PERMUTATIONS_ENABLE_DEBUG_PP
 #warning Delegating bitwise_inclusive_right_parity  =>  PCLMUL
 #endif
-    if !consteval {
+    if CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED {
         if constexpr (N <= 64) {
             const __m128i x_128 = _mm_set_epi64x(0, x);
             const __m128i neg1_128 = _mm_set_epi64x(0, -1);
@@ -556,7 +612,7 @@ template <int N, permissive_unsigned_integral T>
     if constexpr (N <= N_ull) {
         constexpr int N_u = digits_v<unsigned>;
         constexpr int N_ul = digits_v<unsigned long>;
-        if !consteval {
+        if CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED {
             if constexpr (N <= N_u) {
                 return static_cast<T>(__rbit(x) >> (N_u - N));
             }
@@ -596,7 +652,7 @@ template <int N, permissive_unsigned_integral T>
         if constexpr (N >= byte_bits) {
             // Nested constexpr if avoids unnecessary instantiation of optional_byteswap.
             if constexpr (!std::is_same_v<decltype(optional_byteswap(x)), void>) {
-                if !consteval {
+                if CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED {
                     x = optional_byteswap(x) >> (N_actual - N);
                     start_i = byte_bits;
                 }
@@ -605,7 +661,7 @@ template <int N, permissive_unsigned_integral T>
 
         CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
         for (int i = start_i >> 1; i != 0; i >>= 1) {
-            const T hi = alternate01<T>(i);
+            const T hi = depr_alternate01<T>(i);
             x = ((x & hi) >> i) | ((x & ~hi) << i);
         }
 
@@ -678,7 +734,7 @@ template <detail::permissive_unsigned_integral T>
 #ifdef CXX26_BIT_PERMUTATIONS_ENABLE_DEBUG_PP
 #warning Delegating compress_bitsr  =>  PEXT
 #endif
-    if !consteval {
+    if CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED {
         if constexpr (N <= 32) {
             return static_cast<T>(_pext_u32(x, m));
         }
@@ -692,7 +748,7 @@ template <detail::permissive_unsigned_integral T>
 #ifdef CXX26_BIT_PERMUTATIONS_ENABLE_DEBUG_PP
 #warning Delegating compress_bitsr  =>  BEXT
 #endif
-    if !consteval {
+    if CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED {
         if constexpr (N <= 8) {
             auto sv_result = svbext_u8(svdup_u8(x), svdup_u8(m));
             return static_cast<T>(svorv_u8(svptrue_b8(), sv_result));
@@ -759,7 +815,7 @@ template <detail::permissive_unsigned_integral T>
 #ifdef CXX26_BIT_PERMUTATIONS_ENABLE_DEBUG_PP
 #warning Delegating expand_bitsr  =>  PDEP
 #endif
-    if !consteval {
+    if CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED {
         if constexpr (N <= 32) {
             return _pdep_u32(x, m);
         }
@@ -774,7 +830,7 @@ template <detail::permissive_unsigned_integral T>
 #ifdef CXX26_BIT_PERMUTATIONS_ENABLE_DEBUG_PP
 #warning Delegating expand_bitsr  =>  BDEP
 #endif
-    if !consteval {
+    if CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED {
         if constexpr (N <= 8) {
             auto sv_result = svbdep_u8(svdup_u8(x), svdup_u8(m));
             return static_cast<T>(svorv_u8(svptrue_b8(), sv_result));
@@ -866,6 +922,38 @@ template <detail::permissive_unsigned_integral T>
     return expand_bitsr(static_cast<T>(x >> shift), m);
 #endif
 }
+
+#if 0
+template <detail::permissive_unsigned_integral T>
+[[nodiscard]] constexpr T zipr_zero(T x, int xb, int zb) noexcept
+{
+    constexpr int N = detail::digits_v<T>;
+
+    if constexpr (BITS == 0) {
+        return input;
+    }
+    else {
+        constexpr std::uint64_t MASKS[] = {
+            detail::duplBits_naive(detail::ileaveZeros_naive(~std::uint32_t(0), BITS), 1),
+            detail::duplBits_naive(detail::ileaveZeros_naive(~std::uint32_t(0), BITS), 2),
+            detail::duplBits_naive(detail::ileaveZeros_naive(~std::uint32_t(0), BITS), 4),
+            detail::duplBits_naive(detail::ileaveZeros_naive(~std::uint32_t(0), BITS), 8),
+            detail::duplBits_naive(detail::ileaveZeros_naive(~std::uint32_t(0), BITS), 16),
+        };
+        // log2_floor(0) == 0 so this is always safe, even for 1 bit
+        constexpr int start = 4 - static_cast<int>(bitmanip::log2floor(BITS >> 1));
+
+        std::uint64_t n = input;
+        for (int i = start; i != -1; --i) {
+            unsigned shift = BITS * (1u << i);
+            n |= n << shift;
+            n &= MASKS[i];
+        }
+
+        return n;
+    }
+}
+#endif
 
 } // namespace cxx26bp
 

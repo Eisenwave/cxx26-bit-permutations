@@ -73,29 +73,29 @@ void test_log2_ceil()
 
 void test_alternate01()
 {
-    ASSERT_S(alternate01<std::uint8_t>(1) == 0b0101'0101);
-    ASSERT_S(alternate01<std::uint8_t>(2) == 0b0011'0011);
-    ASSERT_S(alternate01<std::uint8_t>(3) == 0b1100'0111);
-    ASSERT_S(alternate01<std::uint8_t>(4) == 0b0000'1111);
-    ASSERT_S(alternate01<std::uint8_t>(8) == 0b1111'1111);
+    ASSERT_S(alternate01<std::uint8_t>(1, 1) == 0b0101'0101);
+    ASSERT_S(alternate01<std::uint8_t>(2, 2) == 0b0011'0011);
+    ASSERT_S(alternate01<std::uint8_t>(3, 3) == 0b1100'0111);
+    ASSERT_S(alternate01<std::uint8_t>(4, 4) == 0b0000'1111);
+    ASSERT_S(alternate01<std::uint8_t>(8, 8) == 0b1111'1111);
 
-    ASSERT_S(alternate01<std::uint32_t>(1) == 0x5555'5555);
-    ASSERT_S(alternate01<std::uint32_t>(2) == 0x3333'3333);
-    ASSERT_S(alternate01<std::uint32_t>(3) == 0xc71c'71c7);
-    ASSERT_S(alternate01<std::uint32_t>(4) == 0x0f0f'0f0f);
-    ASSERT_S(alternate01<std::uint32_t>(8) == 0x00ff'00ff);
+    ASSERT_S(alternate01<std::uint32_t>(1, 1) == 0x5555'5555);
+    ASSERT_S(alternate01<std::uint32_t>(2, 2) == 0x3333'3333);
+    ASSERT_S(alternate01<std::uint32_t>(3, 3) == 0xc71c'71c7);
+    ASSERT_S(alternate01<std::uint32_t>(4, 4) == 0x0f0f'0f0f);
+    ASSERT_S(alternate01<std::uint32_t>(8, 8) == 0x00ff'00ff);
 
-    ASSERT_S(alternate01<std::uint8_t>(1, 2) == 0b0100'1001);
-    ASSERT_S(alternate01<std::uint8_t>(1, 3) == 0b0001'0001);
-    ASSERT_S(alternate01<std::uint8_t>(2, 1) == 0b1101'1011);
-    ASSERT_S(alternate01<std::uint8_t>(2, 3) == 0b0110'0011);
-    ASSERT_S(alternate01<std::uint8_t>(3, 1) == 0b0111'0111);
-    ASSERT_S(alternate01<std::uint8_t>(3, 2) == 0b1110'0111);
+    ASSERT_S(alternate01<std::uint8_t>(2, 1) == 0b0100'1001);
+    ASSERT_S(alternate01<std::uint8_t>(3, 1) == 0b0001'0001);
+    ASSERT_S(alternate01<std::uint8_t>(1, 2) == 0b1101'1011);
+    ASSERT_S(alternate01<std::uint8_t>(3, 2) == 0b0110'0011);
+    ASSERT_S(alternate01<std::uint8_t>(1, 3) == 0b0111'0111);
+    ASSERT_S(alternate01<std::uint8_t>(2, 3) == 0b1110'0111);
 
-    ASSERT_S(alternate01<std::uint32_t>(1, 3) == 0x1111'1111);
-    ASSERT_S(alternate01<std::uint32_t>(3, 1) == 0x7777'7777);
-    ASSERT_S(alternate01<std::uint32_t>(4, 8) == 0x0f00'f00f);
-    ASSERT_S(alternate01<std::uint32_t>(4, 12) == 0x000f'000f);
+    ASSERT_S(alternate01<std::uint32_t>(3, 1) == 0x1111'1111);
+    ASSERT_S(alternate01<std::uint32_t>(1, 3) == 0x7777'7777);
+    ASSERT_S(alternate01<std::uint32_t>(8, 4) == 0x0f00'f00f);
+    ASSERT_S(alternate01<std::uint32_t>(12, 4) == 0x000f'000f);
 }
 
 void test_depr_alternate01()
@@ -350,7 +350,7 @@ void naive_fuzz_2()
 #define IF_U128(...)
 #endif
 
-#ifdef CXX26_BIT_PERMUTATIONS_CLANG
+#ifdef CXX26_BIT_PERMUTATIONS_BITINT
 #define IF_BITINT(...) __VA_ARGS__
 #else
 #define IF_BITINT(...)

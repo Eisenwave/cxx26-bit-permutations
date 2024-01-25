@@ -257,11 +257,55 @@ template <typename T>
 concept permissive_unsigned_integral
     = std::unsigned_integral<T> || bit_unsigned_integral<T> || std::same_as<T, uint128_t>;
 
-/// Simpler form of `has_single_bit()` which doesn't complain about `int`.
-[[nodiscard]] constexpr int is_pow2_or_zero(int x) noexcept
+/// @brief Saturating left-shift.
+/// This is necessary because left-shifting by the operand size or more is undefined behavior.
+/// @tparam T the type
+/// @param x the value to shift
+/// @param s the shift amount
+/// @return `x << s` if `s < N`, `0` otherwise.
+/// @throws Nothing.
+template <permissive_unsigned_integral T>
+[[nodiscard]] CXX26_BIT_PERMUTATIONS_ALWAYS_INLINE constexpr T shl(T x, int s)
 {
-    return (x & (x - 1)) == 0;
+    constexpr int N = digits_v<T>;
+    return s >= N ? 0 : x << s;
 }
+
+/// @brief Repeats a bit pattern.
+/// @param x the bit-pattern, stored in the lest significant `length` bits.
+/// @param length the length of the bit-pattern, in range [1, N]
+/// @return The bit pattern in `x`, repeated as many times as representable by `T`.
+/// @throws Nothing.
+template <permissive_unsigned_integral T>
+[[nodiscard]] CXX26_BIT_PERMUTATIONS_ALWAYS_INLINE constexpr T repeat_bits(T x, int length)
+{
+    constexpr int N = digits_v<T>;
+    constexpr T one = 1;
+
+    if CXX26_BIT_PERMUTATIONS_CONSTANT_EVALUATED {
+        if (length <= 0) {
+            throw "length must be greater than zero";
+        }
+        if (length > N) {
+            throw "length must be <= N";
+        }
+    }
+
+    // Clear undesirable bits which are not part of the pattern.
+    // For length == N, this does nothing.
+    x &= shl(one, length) - 1;
+
+    CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
+    for (int i = length; i < N; i <<= 1) {
+        x |= x << i;
+    }
+
+    return x;
+}
+
+} // namespace detail
+
+namespace detail {
 
 /// @brief Creates a number with alternating
 /// groups of 0s and 1s. The least significant bit
@@ -286,59 +330,30 @@ template <permissive_unsigned_integral T>
     return result;
 }
 
-/// @brief Repeats a bit pattern.
-/// @param x the bit-pattern, stored in the lest significant `length` bits.
-/// @param length the length of the bit-pattern.
-/// @return The bit pattern in `x`, repeated as many times as representable by `T`.
-template <permissive_unsigned_integral T>
-CXX26_BIT_PERMUTATIONS_ALWAYS_INLINE [[nodiscard]] //
-constexpr T
-repeat_bits(T x, int length) noexcept
-{
-    constexpr int N = digits_v<T>;
-    constexpr T one = 1;
-
-    if CXX26_BIT_PERMUTATIONS_CONSTANT_EVALUATED {
-        if (length <= 0) {
-            throw "length must be greater than zero";
-        }
-    }
-
-    // Clear undesirable bits which are not part of the pattern.
-    x &= (one << length) - one;
-
-    CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
-    for (int i = length; i < N; i <<= 1) {
-        x |= x << i;
-    }
-
-    return x;
-}
-
 /// @brief Creates a number with alternating groups of 0s and 1s.
 /// For example, `alternate01<uint8_t>(1, 2) -> 0b01001001
 template <permissive_unsigned_integral T>
 CXX26_BIT_PERMUTATIONS_ALWAYS_INLINE [[nodiscard]] //
 constexpr T
-alternate01(int zero_size, int one_size) noexcept
+alternate01(int zero_size, int one_size)
 {
     constexpr int N = digits_v<T>;
     const int pattern_length = zero_size + one_size;
 
     if CXX26_BIT_PERMUTATIONS_CONSTANT_EVALUATED {
         if (one_size < 0 || one_size > N) {
-            throw "one_size must be in range [0, N)";
+            throw "one_size must be in range [0, N]";
         }
         if (zero_size < 0 || zero_size > N) {
-            throw "zero_size must be in range [0, N)";
+            throw "zero_size must be in range [0, N]";
         }
         if (pattern_length == 0) {
             throw "alternate01(0, 0) is undefined behavior";
         }
     }
 
-    const T pattern = static_cast<T>((T { 1 } << one_size) - 1);
-    return repeat_bits(pattern, pattern_length);
+    const T ones = shl(T { 1 }, one_size) - 1;
+    return repeat_bits(ones, pattern_length);
 }
 
 template <permissive_unsigned_integral T>
@@ -449,15 +464,9 @@ template <permissive_unsigned_integral T>
     constexpr int N = digits_v<T>;
 
 #ifdef CXX26_BIT_PERMUTATIONS_BUILTIN_CLZG
-#ifdef CXX26_BIT_PERMUTATIONS_ENABLE_DEBUG_PP
-#warning Delegating countl_zero  =>  __builtin_clzg
-#endif
     return __builtin_clzg(x, N);
 #else
 #ifdef CXX26_BIT_PERMUTATIONS_BUILTIN_CLZ
-#ifdef CXX26_BIT_PERMUTATIONS_ENABLE_DEBUG_PP
-#warning Delegating countl_zero  =>  __builtin_clz
-#endif
     if (x == 0) {
         return N;
     }
@@ -471,9 +480,6 @@ template <permissive_unsigned_integral T>
         return __builtin_clzll(x) - (digits_v<unsigned long long> - N);
     }
 #elif defined(CXX26_BIT_PERMUTATIONS_BUILTIN_LZCNT)
-#ifdef CXX26_BIT_PERMUTATIONS_ENABLE_DEBUG_PP
-#warning Delegating countl_zero  =>  __lzcnt
-#endif
     if CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED {
         if (x == 0) {
             return N;
@@ -516,15 +522,21 @@ template <permissive_unsigned_integral T>
     return countl_zero(static_cast<T>(~x));
 }
 
-/// Computes `floor(log2(max(1, x)))` of an
-/// integer x.
+/// @brief Returns `true` if x is a power of two or zero.
+[[nodiscard]] constexpr int is_pow2_or_zero(int x) noexcept
+{
+    return (x & (x - 1)) == 0;
+}
+
+/// Computes `floor(log2(max(1, x)))` of an  integer `x`.
+/// If x is zero or negative, returns zero.
 [[nodiscard]] constexpr int log2_floor(int x) noexcept
 {
     return x < 1 ? 0 : digits_v<unsigned> - countl_zero(static_cast<unsigned>(x)) - 1;
 }
 
-/// Computes `ceil(log2(max(1, x)))` of an
-/// integer x.
+/// Computes `ceil(log2(max(1, x)))` of an integer `x`.
+/// If `x` is zero or negative, returns zero.
 [[nodiscard]] constexpr int log2_ceil(int x) noexcept
 {
     return log2_floor(x) + !is_pow2_or_zero(x);
@@ -642,9 +654,6 @@ template <permissive_unsigned_integral T>
     constexpr int N = digits_v<T>;
 
 #ifdef CXX26_BIT_PERMUTATIONS_X86_PCLMUL
-#ifdef CXX26_BIT_PERMUTATIONS_ENABLE_DEBUG_PP
-#warning Delegating bitwise_inclusive_right_parity  =>  PCLMUL
-#endif
     if CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED {
         if constexpr (N <= 64) {
             const __m128i x_128 = _mm_set_epi64x(0, x);
@@ -671,9 +680,6 @@ template <int N, permissive_unsigned_integral T>
     static_assert(N <= N_actual);
 
 #ifdef CXX26_BIT_PERMUTATIONS_BUILTIN_BITREVERSE
-#ifdef CXX26_BIT_PERMUTATIONS_ENABLE_DEBUG_PP
-#warning Delegating reverse_bits  =>  __builtin_bitreverse (clang)
-#endif
     if constexpr (N <= 8) {
         return static_cast<T>(__builtin_bitreverse8(x) >> (8 - N));
     }
@@ -687,9 +693,6 @@ template <int N, permissive_unsigned_integral T>
         return static_cast<T>(__builtin_bitreverse64(x) >> (64 - N));
     }
 #elif defined(CXX26_BIT_PERMUTATIONS_ARM_RBIT)
-#ifdef CXX26_BIT_PERMUTATIONS_ENABLE_DEBUG_PP
-#warning Delegating reverse_bits  =>  __rbit
-#endif
     constexpr int N_ull = digits_v<unsigned long long>;
     if constexpr (N <= N_ull) {
         constexpr int N_u = digits_v<unsigned>;
@@ -813,9 +816,6 @@ template <detail::permissive_unsigned_integral T>
     constexpr int N = detail::digits_v<T>;
 
 #ifdef CXX26_BIT_PERMUTATIONS_X86_PEXT
-#ifdef CXX26_BIT_PERMUTATIONS_ENABLE_DEBUG_PP
-#warning Delegating compress_bitsr  =>  PEXT
-#endif
     if CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED {
         if constexpr (N <= 32) {
             return static_cast<T>(_pext_u32(x, m));
@@ -827,9 +827,6 @@ template <detail::permissive_unsigned_integral T>
 #endif
 
 #ifdef CXX26_BIT_PERMUTATIONS_ARM_BEXT
-#ifdef CXX26_BIT_PERMUTATIONS_ENABLE_DEBUG_PP
-#warning Delegating compress_bitsr  =>  BEXT
-#endif
     if CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED {
         if constexpr (N <= 8) {
             auto sv_result = svbext_u8(svdup_u8(x), svdup_u8(m));
@@ -895,9 +892,6 @@ template <detail::permissive_unsigned_integral T>
     constexpr int log_N = detail::log2_floor(std::bit_ceil<unsigned>(N));
 
 #ifdef CXX26_BIT_PERMUTATIONS_X86_PDEP
-#ifdef CXX26_BIT_PERMUTATIONS_ENABLE_DEBUG_PP
-#warning Delegating expand_bitsr  =>  PDEP
-#endif
     if CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED {
         if constexpr (N <= 32) {
             return _pdep_u32(x, m);
@@ -910,9 +904,6 @@ template <detail::permissive_unsigned_integral T>
 #endif
 
 #ifdef CXX26_BIT_PERMUTATIONS_ARM_BDEP
-#ifdef CXX26_BIT_PERMUTATIONS_ENABLE_DEBUG_PP
-#warning Delegating expand_bitsr  =>  BDEP
-#endif
     if CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED {
         if constexpr (N <= 8) {
             auto sv_result = svbdep_u8(svdup_u8(x), svdup_u8(m));

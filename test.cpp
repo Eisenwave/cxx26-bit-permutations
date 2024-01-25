@@ -77,7 +77,7 @@ void test_alternate01()
     ASSERT_S(alternate01<std::uint8_t>(2, 2) == 0b0011'0011);
     ASSERT_S(alternate01<std::uint8_t>(3, 3) == 0b1100'0111);
     ASSERT_S(alternate01<std::uint8_t>(4, 4) == 0b0000'1111);
-    ASSERT_S(alternate01<std::uint8_t>(8, 8) == 0b1111'1111);
+    ASSERT_S(alternate01<std::uint8_t>(0, 8) == 0b1111'1111);
 
     ASSERT_S(alternate01<std::uint32_t>(1, 1) == 0x5555'5555);
     ASSERT_S(alternate01<std::uint32_t>(2, 2) == 0x3333'3333);

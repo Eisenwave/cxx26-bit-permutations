@@ -1,6 +1,10 @@
 #ifndef CXX26_BIT_PERMUTATIONS_INCLUDE_GUARD
 #define CXX26_BIT_PERMUTATIONS_INCLUDE_GUARD
 
+#include <bit>
+#include <concepts>
+#include <cstdint>
+#include <limits>
 #include <version>
 
 // FIXME: disable
@@ -156,50 +160,53 @@
 #endif
 #endif
 
-#include <bit>
-#include <concepts>
-#include <cstdint>
-#include <limits>
-
-namespace cxx26bp {
-
-namespace detail {
-
-template <typename T>
-inline constexpr int digits_v = std::numeric_limits<T>::digits;
-
 // COMPILER-SPECIFIC FEATURES
 // ==========================
 
 #ifdef CXX26_BIT_PERMUTATIONS_GNU
 #define CXX26_BIT_PERMUTATIONS_ALWAYS_INLINE [[gnu::always_inline]]
 #define CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL _Pragma("GCC unroll 16")
+
 #elif defined(CXX26_BIT_PERMUTATIONS_MSVC)
 #define CXX26_BIT_PERMUTATIONS_ALWAYS_INLINE __forceinline
+
 #else
 #define CXX26_BIT_PERMUTATIONS_ALWAYS_INLINE inline
 #define CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
 #endif
 
-// C++ VERSION-SPECIFIC FEATURES
-// =============================
+// COMPILER-AGNOSTICS uint128_t
+// ============================
 
-#ifdef __cpp_if_consteval
-#define CXX26_BIT_PERMUTATIONS_CONSTANT_EVALUATED consteval
-#define CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED !consteval
+namespace cxx26bp::detail {
+
+#ifdef CXX26_BIT_PERMUTATIONS_GNU
+#define CXX26_BIT_PERMUTATIONS_U128
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+using uint128_t = unsigned __int128;
+#pragma GCC diagnostic pop
+static_assert(std::numeric_limits<uint128_t>::digits == 128);
 #else
-// all vendors use the same builtin
-#define CXX26_BIT_PERMUTATIONS_CONSTANT_EVALUATED (__builtin_is_constant_evaluated())
-#define CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED (!__builtin_is_constant_evaluated())
-#endif
+struct uint128_t;
+#endif // CXX26_BIT_PERMUTATIONS_GNU
+
+} // namespace cxx26bp::detail
 
 // _BitInt ADDITIONAL SUPPORT
 // ==========================
+
+namespace cxx26bp::detail {
+
+template <typename T>
+inline constexpr int digits_v = std::numeric_limits<T>::digits;
 
 template <typename T>
 struct is_bit_uint : std::false_type { };
 
 #ifdef CXX26_BIT_PERMUTATIONS_BITINT
+#ifndef __INTELLISENSE__ // IntelliSense support for _BitInt is broken
+
 template <int N>
 struct is_bit_uint<unsigned _BitInt(N)> : std::true_type { };
 
@@ -214,25 +221,41 @@ inline constexpr int digits_v<unsigned _BitInt(N)> = N;
 
 static_assert(digits_v<_BitInt(128)> == 127);
 static_assert(digits_v<unsigned _BitInt(128)> == 128);
+#endif // __INTELLISENSE__
+#endif // CXX26_BIT_PERMUTATIONS_BITINT
+
+} // namespace cxx26bp::detail
+
+// C++ VERSION-SPECIFIC FEATURES
+// =============================
+
+#ifdef __cpp_if_consteval
+#define CXX26_BIT_PERMUTATIONS_CONSTANT_EVALUATED consteval
+#define CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED !consteval
+#else
+// all vendors use the same builtin
+#define CXX26_BIT_PERMUTATIONS_CONSTANT_EVALUATED (__builtin_is_constant_evaluated())
+#define CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED (!__builtin_is_constant_evaluated())
 #endif
+
+// =================================================================================================
+// =================================================================================================
+// =================================================================================================
+// END OF CONFIG === END OF CONFIG === END OF CONFIG === END OF CONFIG === END OF CONFIG === END OF
+// =================================================================================================
+// =================================================================================================
+// =================================================================================================
+
+namespace cxx26bp {
+
+namespace detail {
 
 template <typename T>
-concept bit_uint = is_bit_uint<T>::value;
-
-#ifdef CXX26_BIT_PERMUTATIONS_GNU
-#define CXX26_BIT_PERMUTATIONS_U128
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpedantic"
-using uint128_t = unsigned __int128;
-#pragma GCC diagnostic pop
-static_assert(std::numeric_limits<uint128_t>::digits == 128);
-#else
-struct uint128_t;
-#endif
+concept bit_unsigned_integral = is_bit_uint<T>::value;
 
 template <typename T>
 concept permissive_unsigned_integral
-    = std::unsigned_integral<T> || bit_uint<T> || std::same_as<T, uint128_t>;
+    = std::unsigned_integral<T> || bit_unsigned_integral<T> || std::same_as<T, uint128_t>;
 
 /// Simpler form of `has_single_bit()` which doesn't complain about `int`.
 [[nodiscard]] constexpr int is_pow2_or_zero(int x) noexcept

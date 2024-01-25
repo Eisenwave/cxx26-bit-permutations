@@ -5,6 +5,24 @@
 
 namespace cxx26bp::detail {
 
+/// @brief Repeats a bit pattern.
+/// @param x the bit-pattern, stored in the lest significant `length` bits.
+/// @param length the length of the bit-pattern, in range [1, N]
+/// @return The bit pattern in `x`, repeated as many times as representable by `T`.
+/// @throws Nothing.
+template <permissive_unsigned_integral T>
+[[nodiscard]] CXX26_BIT_PERMUTATIONS_ALWAYS_INLINE constexpr T repeat_bits_naive(T x, int length)
+{
+    constexpr int N = digits_v<T>;
+
+    T result = 0;
+    for (int i = 0; i < N; ++i) {
+        result |= ((x >> (i % length)) & 1) << i;
+    }
+
+    return result;
+}
+
 // Exposed as a separate function for testing purposes.
 template <permissive_unsigned_integral T>
 [[nodiscard]] constexpr T reverse_bits_naive(T x) noexcept

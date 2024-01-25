@@ -98,6 +98,25 @@ void test_alternate01()
     ASSERT_S(alternate01<std::uint32_t>(12, 4) == 0x000f'000f);
 }
 
+template <std::uint32_t (&F)(std::uint32_t, int)>
+void test_repeat_bits()
+{
+    ASSERT_S(F(0b0, 1) == 0x0);
+    ASSERT_S(F(0b0, 3) == 0x0);
+    ASSERT_S(F(0b0, 32) == 0x0);
+
+    ASSERT_S(F(0b01, 2) == 0x5555'5555);
+    ASSERT_S(F(0x3, 4) == 0x3333'3333);
+    ASSERT_S(F(0b000111, 6) == 0xc71c'71c7);
+    ASSERT_S(F(0x0f, 8) == 0x0f0f'0f0f);
+    ASSERT_S(F(0x00ff, 16) == 0x00ff'00ff);
+
+    ASSERT_S(F(0b0001, 4) == 0x1111'1111);
+    ASSERT_S(F(0b0111, 4) == 0x7777'7777);
+    ASSERT_S(F(0x00f, 12) == 0x0f00'f00f);
+    ASSERT_S(F(0x000f, 16) == 0x000f'000f);
+}
+
 template <int (&F)(unsigned)>
 void test_popcount()
 {
@@ -329,6 +348,22 @@ void naive_fuzz_2()
     }
 }
 
+template <typename T, T (&Fun)(T, int), T (&Naive)(T, int), int FuzzCount = default_fuzz_count>
+void naive_fuzz_repeat_bits()
+{
+    rng_type rng { seed };
+    std::uniform_int_distribution<uint64_t> d;
+    std::uniform_int_distribution<int> d_length { 1, detail::digits_v<T> };
+
+    for (int i = 0; i < FuzzCount; ++i) {
+        const T x = rand_int<T>(rng, d);
+        const int length = d_length(rng);
+        const T actual = Fun(x, length);
+        const T naive = Naive(x, length);
+        ASSERT(actual == naive);
+    }
+}
+
 #ifdef CXX26_BIT_PERMUTATIONS_U128
 #define IF_U128(...) __VA_ARGS__
 #else
@@ -344,6 +379,7 @@ void naive_fuzz_2()
 #define FUZZ_1(T, f) naive_fuzz_1<T, f<T>, f##_naive<T>>
 #define FUZZ_2(T, f) naive_fuzz_2<T, f<T>, f##_naive<T>>
 #define FUZZ_INT(T, f) naive_fuzz_int<T, f<T>, f##_naive<T>>
+#define FUZZ_REPEAT(T, f) naive_fuzz_repeat_bits<T, f<T>, f##_naive<T>>
 
 // clang-format off
 constexpr void (*tests[])() = {
@@ -353,6 +389,8 @@ constexpr void (*tests[])() = {
     test_alternate01,
 
 #ifndef __INTELLISENSE__
+    test_repeat_bits<repeat_bits>,
+    test_repeat_bits<repeat_bits_naive>,
 
     test_popcount<popcount>,
     test_popcount<popcount_naive>,
@@ -384,6 +422,21 @@ constexpr void (*tests[])() = {
     text_prev_bit_permutation<prev_bit_permutation>,
     text_prev_bit_permutation<prev_bit_permutation_naive>,
     
+    FUZZ_REPEAT(std::uint8_t,  repeat_bits),
+    FUZZ_REPEAT(std::uint16_t, repeat_bits),
+    FUZZ_REPEAT(std::uint32_t, repeat_bits),
+    FUZZ_REPEAT(std::uint64_t, repeat_bits),
+    IF_U128(FUZZ_REPEAT(detail::uint128_t, repeat_bits),)
+    IF_BITINT(FUZZ_REPEAT(unsigned _BitInt(2), repeat_bits),)
+    IF_BITINT(FUZZ_REPEAT(unsigned _BitInt(3), repeat_bits),)
+    IF_BITINT(FUZZ_REPEAT(unsigned _BitInt(4), repeat_bits),)
+    IF_BITINT(FUZZ_REPEAT(unsigned _BitInt(5), repeat_bits),)
+    IF_BITINT(FUZZ_REPEAT(unsigned _BitInt(6), repeat_bits),)
+    IF_BITINT(FUZZ_REPEAT(unsigned _BitInt(7), repeat_bits),)
+    IF_BITINT(FUZZ_REPEAT(unsigned _BitInt(8), repeat_bits),)
+    IF_BITINT(FUZZ_REPEAT(unsigned _BitInt(200), repeat_bits),)
+    IF_BITINT(FUZZ_REPEAT(unsigned _BitInt(256), repeat_bits),)
+
     FUZZ_INT(std::uint8_t,  popcount),
     FUZZ_INT(std::uint16_t, popcount),
     FUZZ_INT(std::uint32_t, popcount),
@@ -398,7 +451,6 @@ constexpr void (*tests[])() = {
     IF_BITINT(FUZZ_INT(unsigned _BitInt(8), popcount),)
     IF_BITINT(FUZZ_INT(unsigned _BitInt(200), popcount),)
     IF_BITINT(FUZZ_INT(unsigned _BitInt(256), popcount),)
-
 
     FUZZ_INT(std::uint8_t,  countl_zero),
     FUZZ_INT(std::uint16_t, countl_zero),

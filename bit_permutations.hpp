@@ -267,6 +267,12 @@ concept permissive_unsigned_integral
 template <permissive_unsigned_integral T>
 [[nodiscard]] CXX26_BIT_PERMUTATIONS_ALWAYS_INLINE constexpr T shl(T x, int s)
 {
+    if CXX26_BIT_PERMUTATIONS_CONSTANT_EVALUATED {
+        if (s < 0) {
+            throw "shift by negative amount is not allowed";
+        }
+    }
+
     constexpr int N = digits_v<T>;
     return s >= N ? 0 : x << s;
 }

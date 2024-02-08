@@ -5,7 +5,9 @@
 
 #include <iostream>
 #include <random>
+#if __cpp_lib_source_location >= 201907L
 #include <source_location>
+#endif
 
 using namespace cxx26bp;
 using namespace cxx26bp::detail;
@@ -20,13 +22,27 @@ namespace {
 // e: 0011 0001
 
 [[maybe_unused]] void assert_fail(const char* expr,
-                                  std::source_location loc = std::source_location::current())
+#if __cpp_lib_source_location >= 201907L
+                                  std::source_location loc = std::source_location::current()
+#else
+                                  const char* function_name
+#endif
+)
 {
-    std::cerr << loc.function_name() << "\n\n    " << expr << '\n';
+#if __cpp_lib_source_location >= 201907L
+    std::cerr << loc.function_name();
+#else
+    std::cerr << function_name;
+#endif
+    std::cerr << "\n\n    " << expr << '\n';
     std::exit(1);
 }
 
+#if __cpp_lib_source_location >= 201907L
 #define ASSERT(...) ((__VA_ARGS__) ? void() : assert_fail(#__VA_ARGS__))
+#else
+#define ASSERT(...) ((__VA_ARGS__) ? void() : assert_fail(#__VA_ARGS__, __func__))
+#endif
 
 #if CXX26_BIT_PERMUTATIONS_ENABLE_STATIC_TESTS && !defined(__INTELLISENSE__)
 #define ASSERT_S(...)                                                                              \

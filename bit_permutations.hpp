@@ -8,8 +8,8 @@
 #include <limits>
 #include <version>
 
-// #define CXX26_BIT_PERMUTATIONS_DISABLE_BUILTINS
-// #define CXX26_BIT_PERMUTATIONS_DISABLE_ARCH_INTRINSICS
+#define CXX26_BIT_PERMUTATIONS_DISABLE_BUILTINS
+#define CXX26_BIT_PERMUTATIONS_DISABLE_ARCH_INTRINSICS
 
 // DETECT GNU COMPILERS AND BUILTINS
 // =================================
@@ -355,12 +355,20 @@ template <permissive_unsigned_integral T>
     return bit_repeat(ones, pattern_length);
 }
 
+/// Precomputed table where `alternating_bit_mask_table[i]` equals
+/// `alternate01<T>((1 << i), (1 << i))`.
+/// This table has size `log2_ceil(N) + 1`, where the last element is always a mask with every bit
+/// set.
+/// This may simplify some code compared to using `alternate01` as above directly, because direct
+/// use would involve a shift which is undefined behavior.
 template <typename T>
 inline constexpr auto alternating_bit_mask_table = [] {
-    constexpr int log_N = log2_ceil(digits_v<T>) + 1;
-    std::array<T, log_N> result;
-    for (int i = 0; i < log_N; ++i) {
-        result[static_cast<std::size_t>(i)] = i == 0 ? 0 : alternate01<T>(i, i);
+    constexpr int log_N = log2_ceil(digits_v<T>);
+    // + 1 so that we also get a mask which covers the whole operand.
+    std::array<T, log_N + 1> result;
+    for (int i = 0; i <= log_N; ++i) {
+        result[static_cast<std::size_t>(i)]
+            = i == log_N ? static_cast<T>(-1) : alternate01<T>((1 << i), (1 << i));
     }
     return result;
 }();
@@ -443,13 +451,14 @@ template <permissive_unsigned_integral T>
     // https://graphics.stanford.edu/~seander/bithacks.html#ZerosOnRightParallel
     else {
         constexpr int M = std::bit_ceil<unsigned>(N);
+        constexpr int log_M = log2_floor(M);
         int result = M;
         x &= -x; // isolate the lowest 1-bit
         result -= (x != 0);
         CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
-        for (int i = M >> 1; i != 0; i >>= 1) {
-            const T mask = alternating_bit_mask_table<T>[i];
-            result -= ((x & mask) != 0) * i;
+        for (int i = log_M - 1; i >= 0; --i) {
+            const T mask = detail::alternating_bit_mask_table<T>[i];
+            result -= ((x & mask) != 0) * (1 << i);
         }
         if constexpr (N == M) {
             return result;
@@ -616,16 +625,18 @@ template <permissive_unsigned_integral T>
         return (x >> 2) + ((x >> 1) & 1) + (x & 1);
     }
     else {
-        constexpr auto mask1 = detail::alternating_bit_mask_table<T>[1];
-        constexpr auto mask2 = detail::alternating_bit_mask_table<T>[2];
+        constexpr int log_N = detail::log2_ceil(N);
+
+        constexpr auto mask1 = detail::alternating_bit_mask_table<T>[0];
+        constexpr auto mask2 = detail::alternating_bit_mask_table<T>[1];
 
         T result = x - ((x >> 1) & mask1);
         result = ((result >> 2) & mask2) + (result & mask2);
 
         CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
-        for (int i = 4; i < N; i <<= 1) {
+        for (int i = 2; i < log_N; ++i) {
             const auto mask = detail::alternating_bit_mask_table<T>[i];
-            result = ((result >> i) + result) & mask;
+            result = ((result >> (1 << i)) + result) & mask;
         }
         return result;
     }
@@ -718,7 +729,7 @@ template <int N, permissive_unsigned_integral T>
         // Byte-swap and parallel swap technique for conventional architectures.
         // O(log N)
         constexpr int byte_bits = digits_v<unsigned char>;
-        int start_i = N;
+        int start_pow = detail::log2_floor(N);
 
         // If byteswap does what we want, we can skip a few iterations of the subsequent loop.
         if constexpr (N >= byte_bits) {
@@ -726,15 +737,15 @@ template <int N, permissive_unsigned_integral T>
             if constexpr (!std::is_same_v<decltype(optional_byteswap(x)), void>) {
                 if CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED {
                     x = optional_byteswap(x) >> (N_actual - N);
-                    start_i = byte_bits;
+                    start_pow = detail::log2_floor(byte_bits);
                 }
             }
         }
 
         CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
-        for (int i = start_i >> 1; i != 0; i >>= 1) {
+        for (int i = start_pow - 1; i >= 0; --i) {
             const T lo = alternating_bit_mask_table<T>[i];
-            x = ((x & ~lo) >> i) | ((x & lo) << i);
+            x = ((x & ~lo) >> (1 << i)) | ((x & lo) << (1 << i));
         }
 
         return x;
@@ -886,7 +897,6 @@ template <detail::permissive_unsigned_integral T>
         else if constexpr (N <= 64) {
             return _pdep_u64(x, m);
         }
-        // TODO 128-bit
     }
 #endif
 

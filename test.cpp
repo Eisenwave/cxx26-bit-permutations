@@ -376,6 +376,12 @@ void naive_fuzz_bit_repeat()
 #define IF_BITINT(...)
 #endif
 
+#ifdef CXX_BIT_PERMUTATIONS_BITINT_BEYOND_128
+#define IF_BITINT_SUPER_WIDE(...) __VA_ARGS__
+#else
+#define IF_BITINT_SUPER_WIDE(...)
+#endif
+
 #define FUZZ_1(T, f) naive_fuzz_1<T, f<T>, f##_naive<T>>
 #define FUZZ_2(T, f) naive_fuzz_2<T, f<T>, f##_naive<T>>
 #define FUZZ_INT(T, f) naive_fuzz_int<T, f<T>, f##_naive<T>>
@@ -434,8 +440,8 @@ constexpr void (*tests[])() = {
     IF_BITINT(FUZZ_REPEAT(unsigned _BitInt(6), bit_repeat),)
     IF_BITINT(FUZZ_REPEAT(unsigned _BitInt(7), bit_repeat),)
     IF_BITINT(FUZZ_REPEAT(unsigned _BitInt(8), bit_repeat),)
-    IF_BITINT(FUZZ_REPEAT(unsigned _BitInt(200), bit_repeat),)
-    IF_BITINT(FUZZ_REPEAT(unsigned _BitInt(256), bit_repeat),)
+    IF_BITINT_SUPER_WIDE(FUZZ_REPEAT(unsigned _BitInt(200), bit_repeat),)
+    IF_BITINT_SUPER_WIDE(FUZZ_REPEAT(unsigned _BitInt(256), bit_repeat),)
 
     FUZZ_INT(std::uint8_t,  popcount),
     FUZZ_INT(std::uint16_t, popcount),
@@ -449,8 +455,8 @@ constexpr void (*tests[])() = {
     IF_BITINT(FUZZ_INT(unsigned _BitInt(6), popcount),)
     IF_BITINT(FUZZ_INT(unsigned _BitInt(7), popcount),)
     IF_BITINT(FUZZ_INT(unsigned _BitInt(8), popcount),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(200), popcount),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(256), popcount),)
+    IF_BITINT_SUPER_WIDE(FUZZ_INT(unsigned _BitInt(200), popcount),)
+    IF_BITINT_SUPER_WIDE(FUZZ_INT(unsigned _BitInt(256), popcount),)
 
     FUZZ_INT(std::uint8_t,  countl_zero),
     FUZZ_INT(std::uint16_t, countl_zero),
@@ -464,8 +470,8 @@ constexpr void (*tests[])() = {
     IF_BITINT(FUZZ_INT(unsigned _BitInt(6), countl_zero),)
     IF_BITINT(FUZZ_INT(unsigned _BitInt(7), countl_zero),)
     IF_BITINT(FUZZ_INT(unsigned _BitInt(8), countl_zero),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(200), countl_zero),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(256), countl_zero),)
+    IF_BITINT_SUPER_WIDE(FUZZ_INT(unsigned _BitInt(200), countl_zero),)
+    IF_BITINT_SUPER_WIDE(FUZZ_INT(unsigned _BitInt(256), countl_zero),)
 
     FUZZ_INT(std::uint8_t,  countr_zero),
     FUZZ_INT(std::uint16_t, countr_zero),
@@ -479,8 +485,8 @@ constexpr void (*tests[])() = {
     IF_BITINT(FUZZ_INT(unsigned _BitInt(6), countr_zero),)
     IF_BITINT(FUZZ_INT(unsigned _BitInt(7), countr_zero),)
     IF_BITINT(FUZZ_INT(unsigned _BitInt(8), countr_zero),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(200), countr_zero),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(256), countr_zero),)
+    IF_BITINT_SUPER_WIDE(FUZZ_INT(unsigned _BitInt(200), countr_zero),)
+    IF_BITINT_SUPER_WIDE(FUZZ_INT(unsigned _BitInt(256), countr_zero),)
 
     FUZZ_INT(std::uint8_t,  countl_one),
     FUZZ_INT(std::uint16_t, countl_one),
@@ -495,8 +501,8 @@ constexpr void (*tests[])() = {
     IF_BITINT(FUZZ_INT(unsigned _BitInt(6), countl_one),)
     IF_BITINT(FUZZ_INT(unsigned _BitInt(7), countl_one),)
     IF_BITINT(FUZZ_INT(unsigned _BitInt(8), countl_one),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(200), countl_one),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(256), countl_one),)
+    IF_BITINT_SUPER_WIDE(FUZZ_INT(unsigned _BitInt(200), countl_one),)
+    IF_BITINT_SUPER_WIDE(FUZZ_INT(unsigned _BitInt(256), countl_one),)
 
     FUZZ_INT(std::uint8_t,  countr_one),
     FUZZ_INT(std::uint16_t, countr_one),
@@ -510,8 +516,8 @@ constexpr void (*tests[])() = {
     IF_BITINT(FUZZ_INT(unsigned _BitInt(6), countr_one),)
     IF_BITINT(FUZZ_INT(unsigned _BitInt(7), countr_one),)
     IF_BITINT(FUZZ_INT(unsigned _BitInt(8), countr_one),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(200), countr_one),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(256), countr_one),)
+    IF_BITINT_SUPER_WIDE(FUZZ_INT(unsigned _BitInt(200), countr_one),)
+    IF_BITINT_SUPER_WIDE(FUZZ_INT(unsigned _BitInt(256), countr_one),)
 
     FUZZ_1(std::uint8_t,  bit_reverse),
     FUZZ_1(std::uint16_t, bit_reverse),
@@ -525,8 +531,8 @@ constexpr void (*tests[])() = {
     IF_BITINT(FUZZ_1(unsigned _BitInt(6), bit_reverse),)
     IF_BITINT(FUZZ_1(unsigned _BitInt(7), bit_reverse),)
     IF_BITINT(FUZZ_1(unsigned _BitInt(8), bit_reverse),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(200), bit_reverse),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(256), bit_reverse),)
+    IF_BITINT_SUPER_WIDE(FUZZ_1(unsigned _BitInt(200), bit_reverse),)
+    IF_BITINT_SUPER_WIDE(FUZZ_1(unsigned _BitInt(256), bit_reverse),)
 
     FUZZ_1(std::uint8_t,  bitwise_inclusive_right_parity),
     FUZZ_1(std::uint16_t, bitwise_inclusive_right_parity),
@@ -540,8 +546,8 @@ constexpr void (*tests[])() = {
     IF_BITINT(FUZZ_1(unsigned _BitInt(6), bitwise_inclusive_right_parity),)
     IF_BITINT(FUZZ_1(unsigned _BitInt(7), bitwise_inclusive_right_parity),)
     IF_BITINT(FUZZ_1(unsigned _BitInt(8), bitwise_inclusive_right_parity),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(200), bitwise_inclusive_right_parity),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(256), bitwise_inclusive_right_parity),)
+    IF_BITINT_SUPER_WIDE(FUZZ_1(unsigned _BitInt(200), bitwise_inclusive_right_parity),)
+    IF_BITINT_SUPER_WIDE(FUZZ_1(unsigned _BitInt(256), bitwise_inclusive_right_parity),)
 
 
     // TODO: Large fuzz-testing these against a naive implementation is not viable
@@ -561,8 +567,8 @@ constexpr void (*tests[])() = {
     IF_BITINT(FUZZ_2(unsigned _BitInt(6), bit_compressr),)
     IF_BITINT(FUZZ_2(unsigned _BitInt(7), bit_compressr),)
     IF_BITINT(FUZZ_2(unsigned _BitInt(8), bit_compressr),)
-    IF_BITINT(FUZZ_2(unsigned _BitInt(200), bit_compressr),)
-    IF_BITINT(FUZZ_2(unsigned _BitInt(256), bit_compressr),)
+    IF_BITINT_SUPER_WIDE(FUZZ_2(unsigned _BitInt(200), bit_compressr),)
+    IF_BITINT_SUPER_WIDE(FUZZ_2(unsigned _BitInt(256), bit_compressr),)
 
     FUZZ_2(std::uint8_t,  bit_compressl),
     FUZZ_2(std::uint16_t, bit_compressl),
@@ -576,8 +582,8 @@ constexpr void (*tests[])() = {
     IF_BITINT(FUZZ_2(unsigned _BitInt(6), bit_compressl),)
     IF_BITINT(FUZZ_2(unsigned _BitInt(7), bit_compressl),)
     IF_BITINT(FUZZ_2(unsigned _BitInt(8), bit_compressl),)
-    IF_BITINT(FUZZ_2(unsigned _BitInt(200), bit_compressl),)
-    IF_BITINT(FUZZ_2(unsigned _BitInt(256), bit_compressl),)
+    IF_BITINT_SUPER_WIDE(FUZZ_2(unsigned _BitInt(200), bit_compressl),)
+    IF_BITINT_SUPER_WIDE(FUZZ_2(unsigned _BitInt(256), bit_compressl),)
 
     FUZZ_2(std::uint8_t,  bit_expandr),
     FUZZ_2(std::uint16_t, bit_expandr),
@@ -591,8 +597,8 @@ constexpr void (*tests[])() = {
     IF_BITINT(FUZZ_2(unsigned _BitInt(6), bit_expandr),)
     IF_BITINT(FUZZ_2(unsigned _BitInt(7), bit_expandr),)
     IF_BITINT(FUZZ_2(unsigned _BitInt(8), bit_expandr),)
-    IF_BITINT(FUZZ_2(unsigned _BitInt(200), bit_expandr),)
-    IF_BITINT(FUZZ_2(unsigned _BitInt(256), bit_expandr),)
+    IF_BITINT_SUPER_WIDE(FUZZ_2(unsigned _BitInt(200), bit_expandr),)
+    IF_BITINT_SUPER_WIDE(FUZZ_2(unsigned _BitInt(256), bit_expandr),)
 
     FUZZ_2(std::uint8_t,  bit_expandl),
     FUZZ_2(std::uint16_t, bit_expandl),
@@ -606,8 +612,8 @@ constexpr void (*tests[])() = {
     IF_BITINT(FUZZ_2(unsigned _BitInt(6), bit_expandl),)
     IF_BITINT(FUZZ_2(unsigned _BitInt(7), bit_expandl),)
     IF_BITINT(FUZZ_2(unsigned _BitInt(8), bit_expandl),)
-    IF_BITINT(FUZZ_2(unsigned _BitInt(200), bit_expandl),)
-    IF_BITINT(FUZZ_2(unsigned _BitInt(256), bit_expandl),)
+    IF_BITINT_SUPER_WIDE(FUZZ_2(unsigned _BitInt(200), bit_expandl),)
+    IF_BITINT_SUPER_WIDE(FUZZ_2(unsigned _BitInt(256), bit_expandl),)
 #endif
 };
 // clang-format on
